@@ -96,8 +96,9 @@ struct l_netconfig {
 	bool have_lla;
 	enum {
 		NETCONFIG_V6_METHOD_UNSET,
-		NETCONFIG_V6_METHOD_DHCP,
-		NETCONFIG_V6_METHOD_SLAAC,
+		NETCONFIG_V6_METHOD_DHCP,       /* Managed bit set in RA */
+		NETCONFIG_V6_METHOD_SLAAC_DHCP, /* Other bit set in RA */
+		NETCONFIG_V6_METHOD_SLAAC,      /* Neither flag set in RA */
 	} v6_auto_method;
 	struct l_queue *slaac_dnses;
 	struct l_queue *slaac_domains;
@@ -624,13 +625,17 @@ static void netconfig_dhcp6_event_handler(struct l_dhcp6_client *client,
 		if (L_WARN_ON(nc->v6_configured))
 			break;
 
-		netconfig_add_dhcp6_address(nc);
-		netconfig_set_dhcp6_address_lifetimes(nc, false);
+		if (nc->v6_auto_method == NETCONFIG_V6_METHOD_DHCP) {
+			netconfig_add_dhcp6_address(nc);
+			netconfig_set_dhcp6_address_lifetimes(nc, false);
+		}
+
 		nc->v6_configured = true;
 		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_CONFIGURE);
 		break;
 	case L_DHCP6_CLIENT_EVENT_IP_CHANGED:
-		if (L_WARN_ON(!nc->v6_configured))
+		if (L_WARN_ON(!nc->v6_configured ||
+				nc->v6_auto_method != NETCONFIG_V6_METHOD_DHCP))
 			break;
 
 		netconfig_remove_dhcp6_address(nc, false);
@@ -639,7 +644,8 @@ static void netconfig_dhcp6_event_handler(struct l_dhcp6_client *client,
 		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_UPDATE);
 		break;
 	case L_DHCP6_CLIENT_EVENT_LEASE_EXPIRED:
-		if (L_WARN_ON(!nc->v6_configured))
+		if (L_WARN_ON(!nc->v6_configured ||
+				nc->v6_auto_method != NETCONFIG_V6_METHOD_DHCP))
 			break;
 
 		netconfig_remove_dhcp6_address(nc, true);
@@ -658,11 +664,17 @@ static void netconfig_dhcp6_event_handler(struct l_dhcp6_client *client,
 		if (L_WARN_ON(!nc->v6_configured))
 			break;
 
-		netconfig_set_dhcp6_address_lifetimes(nc, true);
+		if (nc->v6_auto_method == NETCONFIG_V6_METHOD_DHCP)
+			netconfig_set_dhcp6_address_lifetimes(nc, true);
+
 		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_UPDATE);
 		break;
 	case L_DHCP6_CLIENT_EVENT_NO_LEASE:
 		if (L_WARN_ON(nc->v6_configured))
+			break;
+
+		if (nc->v6_auto_method == NETCONFIG_V6_METHOD_SLAAC_DHCP &&
+				!l_queue_isempty(nc->slaac_dnses))
 			break;
 
 		/*
@@ -699,7 +711,9 @@ static bool netconfig_match_str(const void *a, const void *b)
 static bool netconfig_check_start_dhcp6(struct l_netconfig *nc)
 {
 	/* Don't start DHCPv6 until we get an RA with the managed bit set */
-	if (nc->ra_timeout || nc->v6_auto_method != NETCONFIG_V6_METHOD_DHCP)
+	if (nc->ra_timeout || !L_IN_SET(nc->v6_auto_method,
+				NETCONFIG_V6_METHOD_DHCP,
+				NETCONFIG_V6_METHOD_SLAAC_DHCP))
 		return true;
 
 	/* Don't start DHCPv6 while waiting for the link-local address */
@@ -765,8 +779,13 @@ static void netconfig_add_slaac_address(struct l_netconfig *nc,
 
 	l_queue_push_tail(nc->addresses.current, nc->v6_address);
 	l_queue_push_tail(nc->addresses.added, nc->v6_address);
-	nc->v6_configured = true;
-	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_CONFIGURE);
+
+	if (nc->v6_auto_method == NETCONFIG_V6_METHOD_SLAAC ||
+			nc->slaac_dnses) {
+		nc->v6_configured = true;
+		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_CONFIGURE);
+	} else
+		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_UPDATE);
 
 	/* TODO: set a renew timeout */
 }
@@ -1202,6 +1221,7 @@ process_nondefault_routes:
 	if (nc->v6_auto_method == NETCONFIG_V6_METHOD_UNSET &&
 			l_icmp6_router_get_managed(r)) {
 		nc->v6_auto_method = NETCONFIG_V6_METHOD_DHCP;
+		l_dhcp6_client_set_stateless(nc->dhcp6_client, false);
 
 		if (!netconfig_check_start_dhcp6(nc)) {
 			netconfig_emit_event(nc, AF_INET6,
@@ -1213,12 +1233,17 @@ process_nondefault_routes:
 	}
 
 	/*
-	 * DHCP not available according to this router, check if any of the
-	 * prefixes allow SLAAC.
+	 * Stateful DHCP not available according to this router, check if
+	 * any of the prefixes allow SLAAC.
 	 */
 	if (nc->v6_auto_method == NETCONFIG_V6_METHOD_UNSET &&
 			r->n_ac_prefixes) {
-		nc->v6_auto_method = NETCONFIG_V6_METHOD_SLAAC;
+		if (l_icmp6_router_get_other(r)) {
+			nc->v6_auto_method = NETCONFIG_V6_METHOD_SLAAC_DHCP;
+			l_dhcp6_client_set_stateless(nc->dhcp6_client, true);
+			netconfig_check_start_dhcp6(nc);
+		} else
+			nc->v6_auto_method = NETCONFIG_V6_METHOD_SLAAC;
 
 		/*
 		 * Do this first so that any changes are included in the
@@ -2188,7 +2213,7 @@ LIB_EXPORT void l_netconfig_unconfigure(struct l_netconfig *netconfig)
 					L_NETCONFIG_EVENT_UNCONFIGURE);
 	}
 
-	if (netconfig->v6_configured) {
+	if (netconfig->v6_address) {
 		netconfig_remove_dhcp6_address(netconfig, false);
 		netconfig->v6_configured = false;
 	}
