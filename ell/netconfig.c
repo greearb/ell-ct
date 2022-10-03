@@ -188,6 +188,24 @@ static void netconfig_emit_event(struct l_netconfig *nc, uint8_t family,
 		netconfig_update_cleanup(nc);
 }
 
+static void netconfig_addr_wait_unregister(struct l_netconfig *nc,
+						bool in_notify);
+
+static void netconfig_failed(struct l_netconfig *nc, uint8_t family)
+{
+	if (family == AF_INET) {
+		l_dhcp_client_stop(nc->dhcp_client);
+		l_acd_destroy(l_steal_ptr(nc->acd));
+	} else {
+		netconfig_addr_wait_unregister(nc, false);
+		l_dhcp6_client_stop(nc->dhcp6_client);
+		l_icmp6_client_stop(nc->icmp6_client);
+		l_timeout_remove(l_steal_ptr(nc->ra_timeout));
+	}
+
+	netconfig_emit_event(nc, family, L_NETCONFIG_EVENT_FAILED);
+}
+
 static struct l_rtnl_route *netconfig_route_new(struct l_netconfig *nc,
 						uint8_t family,
 						const void *dst,
@@ -523,8 +541,7 @@ static void netconfig_dhcp_event_handler(struct l_dhcp_client *client,
 			netconfig_emit_event(nc, AF_INET,
 						L_NETCONFIG_EVENT_UNCONFIGURE);
 		else
-			netconfig_emit_event(nc, AF_INET,
-						L_NETCONFIG_EVENT_FAILED);
+			netconfig_failed(nc, AF_INET);
 
 		break;
 	case L_DHCP_CLIENT_EVENT_NO_LEASE:
@@ -539,8 +556,7 @@ static void netconfig_dhcp_event_handler(struct l_dhcp_client *client,
 		 * better yet a configurable timeout.
 		 */
 		if (!l_dhcp_client_start(nc->dhcp_client))
-			netconfig_emit_event(nc, AF_INET,
-						L_NETCONFIG_EVENT_FAILED);
+			netconfig_failed(nc, AF_INET);
 
 		break;
 	}
@@ -656,8 +672,7 @@ static void netconfig_dhcp6_event_handler(struct l_dhcp6_client *client,
 			netconfig_emit_event(nc, AF_INET6,
 						L_NETCONFIG_EVENT_UNCONFIGURE);
 		else
-			netconfig_emit_event(nc, AF_INET6,
-						L_NETCONFIG_EVENT_FAILED);
+			netconfig_failed(nc, AF_INET6);
 
 		break;
 	case L_DHCP6_CLIENT_EVENT_LEASE_RENEWED:
@@ -686,8 +701,7 @@ static void netconfig_dhcp6_event_handler(struct l_dhcp6_client *client,
 		 * or better yet a configurable timeout.
 		 */
 		if (!l_dhcp6_client_start(nc->dhcp6_client))
-			netconfig_emit_event(nc, AF_INET6,
-						L_NETCONFIG_EVENT_FAILED);
+			netconfig_failed(nc, AF_INET6);
 
 		break;
 	}
@@ -727,11 +741,8 @@ static void netconfig_ra_timeout_cb(struct l_timeout *timeout, void *user_data)
 {
 	struct l_netconfig *nc = user_data;
 
-	l_timeout_remove(l_steal_ptr(nc->ra_timeout));
-
 	/* No Router Advertisements received, assume no DHCPv6 or SLAAC */
-	l_icmp6_client_stop(nc->icmp6_client);
-	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
+	netconfig_failed(nc, AF_INET6);
 }
 
 static void netconfig_add_slaac_address(struct l_netconfig *nc,
@@ -1238,8 +1249,7 @@ process_nondefault_routes:
 		l_dhcp6_client_set_stateless(nc->dhcp6_client, false);
 
 		if (!netconfig_check_start_dhcp6(nc)) {
-			netconfig_emit_event(nc, AF_INET6,
-						L_NETCONFIG_EVENT_FAILED);
+			netconfig_failed(nc, AF_INET6);
 			return;
 		}
 
@@ -1279,7 +1289,7 @@ process_nondefault_routes:
 
 	/* Neither method seems available, fail */
 	if (nc->v6_auto_method == NETCONFIG_V6_METHOD_UNSET) {
-		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
+		netconfig_failed(nc, AF_INET6);
 		return;
 	}
 
@@ -1777,7 +1787,7 @@ static void netconfig_ipv4_acd_event(enum l_acd_event event, void *user_data)
 		 * Conflict found, no IP was actually set or routes added so
 		 * just emit the event.
 		 */
-		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_FAILED);
+		netconfig_failed(nc, AF_INET);
 		break;
 	case L_ACD_EVENT_LOST:
 		if (L_WARN_ON(!nc->v4_configured))
@@ -1790,7 +1800,7 @@ static void netconfig_ipv4_acd_event(enum l_acd_event event, void *user_data)
 		 */
 		netconfig_remove_v4_address_routes(nc, false);
 		nc->v4_configured = false;
-		netconfig_emit_event(nc, AF_INET, L_NETCONFIG_EVENT_FAILED);
+		netconfig_failed(nc, AF_INET);
 		break;
 	}
 }
@@ -1911,10 +1921,8 @@ static void netconfig_ifaddr_ipv6_added(struct l_netconfig *nc,
 	 * Only now that we have a link-local address see if we can start
 	 * actual DHCPv6 setup.
 	 */
-	if (new_lla && netconfig_check_start_dhcp6(nc))
-		return;
-
-	netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
+	if (new_lla && !netconfig_check_start_dhcp6(nc))
+		netconfig_failed(nc, AF_INET6);
 }
 
 static void netconfig_ifaddr_ipv6_notify(uint16_t type, const void *data,
@@ -1951,8 +1959,7 @@ static void netconfig_ifaddr_ipv6_dump_cb(int error, uint16_t type,
 		return;
 
 	if (error) {
-		netconfig_addr_wait_unregister(nc, false);
-		netconfig_emit_event(nc, AF_INET6, L_NETCONFIG_EVENT_FAILED);
+		netconfig_failed(nc, AF_INET6);
 		return;
 	}
 
