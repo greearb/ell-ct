@@ -1098,6 +1098,7 @@ bool _dhcp6_option_iter_next(struct dhcp6_option_iter *iter, uint16_t *type,
 }
 
 static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
+					bool expect_client_id,
 					const struct dhcp6_message *message,
 					size_t len)
 {
@@ -1205,7 +1206,7 @@ static int dhcp6_client_validate_message(struct l_dhcp6_client *client,
 		}
 	}
 
-	if (!duid_verified) {
+	if (expect_client_id && !duid_verified) {
 		CLIENT_DEBUG("Message %s - no client id option found", mstr);
 		return -EBADMSG;
 	}
@@ -1229,7 +1230,7 @@ static int dhcp6_client_receive_advertise(struct l_dhcp6_client *client,
 	if (advertise->msg_type != DHCP6_MESSAGE_TYPE_ADVERTISE)
 		return -EINVAL;
 
-	r = dhcp6_client_validate_message(client, advertise, len);
+	r = dhcp6_client_validate_message(client, true, advertise, len);
 	if (r < 0)
 		return r;
 
@@ -1311,11 +1312,17 @@ static int dhcp6_client_receive_reply(struct l_dhcp6_client *client,
 	struct l_dhcp6_lease *lease;
 	struct dhcp6_option_iter iter;
 	int r;
+	/*
+	 * Per RFC 7844 Section 4.3.1 we never send Client ID options in
+	 * Information-requests so don't expect the replies to contain them.
+	 */
+	bool expect_client_id =
+		(client->state != DHCP6_STATE_REQUESTING_INFORMATION);
 
 	if (reply->msg_type != DHCP6_MESSAGE_TYPE_REPLY)
 		return -EINVAL;
 
-	r = dhcp6_client_validate_message(client, reply, len);
+	r = dhcp6_client_validate_message(client, expect_client_id, reply, len);
 	if (r < 0)
 		return r;
 
