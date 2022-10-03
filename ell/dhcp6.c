@@ -971,8 +971,9 @@ static void dhcp6_client_setup_lease(struct l_dhcp6_client *client,
 	client->lease->start_time = timestamp;
 
 	/* TODO: Emit IP_CHANGED if any addresses were removed / added */
-	if (client->state == DHCP6_STATE_REQUESTING ||
-			client->state == DHCP6_STATE_SOLICITING)
+	if (L_IN_SET(client->state, DHCP6_STATE_REQUESTING,
+				DHCP6_STATE_SOLICITING,
+				DHCP6_STATE_REQUESTING_INFORMATION))
 		event = L_DHCP6_CLIENT_EVENT_LEASE_OBTAINED;
 	else
 		event = L_DHCP6_CLIENT_EVENT_LEASE_RENEWED;
@@ -1385,7 +1386,8 @@ static void dhcp6_client_rx_message(const void *data, size_t len,
 	case DHCP6_STATE_BOUND:
 		return;
 	case DHCP6_STATE_REQUESTING_INFORMATION:
-		if (dhcp6_client_receive_reply(client, message, len) < 0)
+		r = dhcp6_client_receive_reply(client, message, len);
+		if (r < 0)
 			return;
 
 		break;
@@ -1527,7 +1529,6 @@ LIB_EXPORT struct l_dhcp6_client *l_dhcp6_client_new(uint32_t ifindex)
 
 	client->state = DHCP6_STATE_INIT;
 	client->ifindex = ifindex;
-	client->request_na = true;
 
 	client->icmp6 = l_icmp6_client_new(ifindex);
 	l_icmp6_client_add_event_handler(client->icmp6,
@@ -1802,6 +1803,8 @@ LIB_EXPORT bool l_dhcp6_client_start(struct l_dhcp6_client *client)
 		client_duid_generate_addr(client);
 	else
 		client_duid_generate_addr_plus_time(client);
+
+	client->request_na = !client->stateless;
 
 	if (!client->transport) {
 		client->transport =
