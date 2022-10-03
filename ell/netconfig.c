@@ -1210,6 +1210,20 @@ process_nondefault_routes:
 	}
 
 	/*
+	 * Do this first so that any changes are included in the event
+	 * emitted next, be it UPDATE or CONFIGURE.
+	 */
+	if (r->n_dns || r->n_domains) {
+		if (!nc->slaac_dnses && r->n_dns)
+			nc->slaac_dnses = l_queue_new();
+
+		if (!nc->slaac_domains && r->n_domains)
+			nc->slaac_domains = l_queue_new();
+
+		dns_updated = netconfig_process_slaac_dns_info(nc, r);
+	}
+
+	/*
 	 * For lack of a better policy, select between DHCPv6 and SLAAC based
 	 * on the first RA received.  Prefer DHCPv6.
 	 *
@@ -1246,14 +1260,6 @@ process_nondefault_routes:
 			nc->v6_auto_method = NETCONFIG_V6_METHOD_SLAAC;
 
 		/*
-		 * Do this first so that any changes are included in the
-		 * CONFIGURE event emitted next.
-		 */
-		nc->slaac_dnses = l_queue_new();
-		nc->slaac_domains = l_queue_new();
-		netconfig_process_slaac_dns_info(nc, r);
-
-		/*
 		 * The DAD for the link-local address may be still running
 		 * but again we can generate the global address already and
 		 * commit it to start in-kernel DAD for it.
@@ -1287,7 +1293,6 @@ process_nondefault_routes:
 	 * and allows us to extend its lifetime.
 	 */
 	netconfig_set_slaac_address_lifetimes(nc, r);
-	dns_updated = netconfig_process_slaac_dns_info(nc, r);
 
 emit_event:
 	/*
@@ -2411,14 +2416,18 @@ append_v6:
 	if (!netconfig->v6_configured)
 		goto done;
 
-	if (netconfig->v6_dns_override)
+	if (netconfig->v6_dns_override) {
 		netconfig_strv_cat(&ret, netconfig->v6_dns_override, false);
-	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_DHCP &&
+		goto done;
+	}
+
+	if (L_IN_SET(netconfig->v6_auto_method, NETCONFIG_V6_METHOD_DHCP,
+				NETCONFIG_V6_METHOD_SLAAC_DHCP) &&
 			(v6_lease = l_dhcp6_client_get_lease(
 						netconfig->dhcp6_client)))
 		netconfig_strv_cat(&ret, l_dhcp6_lease_get_dns(v6_lease), true);
-	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_SLAAC &&
-			!l_queue_isempty(netconfig->slaac_dnses)) {
+
+	if (!l_queue_isempty(netconfig->slaac_dnses)) {
 		unsigned int dest_len = l_strv_length(ret);
 		unsigned int src_len = l_queue_length(netconfig->slaac_dnses);
 		char **i;
@@ -2468,16 +2477,20 @@ append_v6:
 	if (!netconfig->v6_configured)
 		goto done;
 
-	if (netconfig->v6_domain_names_override)
+	if (netconfig->v6_domain_names_override) {
 		netconfig_strv_cat(&ret, netconfig->v6_domain_names_override,
 					false);
-	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_DHCP &&
+		goto done;
+	}
+
+	if (L_IN_SET(netconfig->v6_auto_method, NETCONFIG_V6_METHOD_DHCP,
+				NETCONFIG_V6_METHOD_SLAAC_DHCP) &&
 			(v6_lease = l_dhcp6_client_get_lease(
 						netconfig->dhcp6_client)))
 		netconfig_strv_cat(&ret, l_dhcp6_lease_get_domains(v6_lease),
 					true);
-	else if (netconfig->v6_auto_method == NETCONFIG_V6_METHOD_SLAAC &&
-			!l_queue_isempty(netconfig->slaac_domains)) {
+
+	if (!l_queue_isempty(netconfig->slaac_domains)) {
 		unsigned int dest_len = l_strv_length(ret);
 		unsigned int src_len = l_queue_length(netconfig->slaac_domains);
 		char **i;
