@@ -405,8 +405,8 @@ static void netconfig_set_dhcp_lifetimes(struct l_netconfig *nc, bool updated)
 	uint64_t expiry = l_dhcp_lease_get_start_time(lease) +
 		lifetime * L_USEC_PER_SEC;
 
-	l_rtnl_address_set_lifetimes(nc->v4_address, 0, lifetime);
-	l_rtnl_address_set_expiry(nc->v4_address, 0, expiry);
+	l_rtnl_address_set_lifetimes(nc->v4_address, lifetime, lifetime);
+	l_rtnl_address_set_expiry(nc->v4_address, expiry, expiry);
 
 	if (updated && !netconfig_address_exists(nc->addresses.added,
 							nc->v4_address))
