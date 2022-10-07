@@ -389,18 +389,8 @@ static int kernel_raw_socket_open(uint32_t ifindex, uint16_t port, uint32_t xid)
 		BPF_STMT(BPF_RET + BPF_K, 0),
 		/* A <- IP version + Header length */
 		BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 0),
-		/* A <- A & 0xf0 (Mask off version */
-		BPF_STMT(BPF_ALU + BPF_AND + BPF_K, 0xf0),
-		/* A == IPVERSION (shifted left 4) ? */
-		BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, IPVERSION << 4, 1, 0),
-		/* ignore */
-		BPF_STMT(BPF_RET + BPF_K, 0),
-		/* A <- IP version + Header length */
-		BPF_STMT(BPF_LD + BPF_B + BPF_ABS, 0),
-		/* A <- A & 0x0f (Mask off IP Header Length */
-		BPF_STMT(BPF_ALU + BPF_AND + BPF_K, 0x0f),
-		/* A == 5 ? */
-		BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, 5, 1, 0),
+		/* IP version == IPVERSION && Header length == 5 ? */
+		BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, (IPVERSION << 4) | 5, 1, 0),
 		/* ignore */
 		BPF_STMT(BPF_RET + BPF_K, 0),
 		/* A <- IP protocol */
