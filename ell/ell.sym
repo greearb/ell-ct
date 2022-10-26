@@ -553,6 +553,7 @@ global:
 	l_cert_free;
 	l_cert_get_der_data;
 	l_cert_get_dn;
+	l_cert_get_valid_times;
 	l_cert_get_pubkey_type;
 	l_cert_get_pubkey;
 	l_certchain_free;

@@ -25,6 +25,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <errno.h>
+#include <time.h>
 
 #include "private.h"
 #include "useful.h"
@@ -33,6 +34,8 @@
 #include "asn1-private.h"
 #include "cipher.h"
 #include "pem-private.h"
+#include "time.h"
+#include "utf8.h"
 #include "cert.h"
 #include "cert-private.h"
 #include "tls.h"
@@ -184,6 +187,188 @@ LIB_EXPORT const uint8_t *l_cert_get_dn(struct l_cert *cert, size_t *out_len)
 						X509_TBSCERTIFICATE_POS,
 						X509_TBSCERT_SUBJECT_DN_POS,
 						-1);
+}
+
+static uint64_t cert_parse_asn1_time(const uint8_t *data, size_t len,
+					uint8_t tag)
+{
+	struct tm tm = {};
+	int tz_hours;
+	int tz_mins;
+	int century;
+	int msecs = 0;
+	time_t tt;
+	unsigned int i;
+
+	for (i = 0; i < len && i < 15; i++)
+		if (unlikely(!l_ascii_isdigit(data[i])))
+			break;
+
+	if (tag == ASN1_ID_UTCTIME) {
+		if (unlikely(!L_IN_SET(i, 10, 12)))
+			return L_TIME_INVALID;
+
+		century = 19;
+	} else if (tag == ASN1_ID_GENERALIZEDTIME) {
+		if (unlikely(!L_IN_SET(i, 10, 12, 14)))
+			return L_TIME_INVALID;
+
+		century = (data[0] - '0') * 10 + (data[1] - '0');
+		if (century < 19)
+				return L_TIME_INVALID;
+
+		if (len >= i + 4 && data[i] == '.') {
+			if (unlikely(!l_ascii_isdigit(data[i + 1]) ||
+						!l_ascii_isdigit(data[i + 2]) ||
+						!l_ascii_isdigit(data[i + 3])))
+				return L_TIME_INVALID;
+
+			i++;
+			msecs += (data[i++] - '0') * 100;
+			msecs += (data[i++] - '0') * 10;
+			msecs += (data[i++] - '0');
+		}
+
+		data += 2;
+		len -= 2;
+		i -= 2;
+	} else
+		return L_TIME_INVALID;
+
+	if (unlikely((len != i + 1 || data[i] != 'Z') &&
+			(len != i + 5 || data[i] != '+' || data[i] != '-')))
+		return L_TIME_INVALID;
+
+	tm.tm_year = (data[0] - '0') * 10 + (data[1] - '0');
+	tm.tm_mon = (data[2] - '0') * 10 + (data[3] - '0');
+	tm.tm_mday = (data[4] - '0') * 10 + (data[5] - '0');
+	tm.tm_hour = (data[6] - '0') * 10 + (data[7] - '0');
+
+	if (unlikely(tm.tm_mon < 1 || tm.tm_mon > 12 ||
+				tm.tm_mday < 1 || tm.tm_mday > 31 ||
+				tm.tm_hour > 23))
+		return L_TIME_INVALID;
+
+	if (i >= 10) {
+		tm.tm_min = (data[8] - '0') * 10 + (data[9] - '0');
+		if (unlikely(tm.tm_min > 59))
+			return L_TIME_INVALID;
+	}
+
+	if (i >= 12) {
+		tm.tm_sec = (data[10] - '0') * 10 + (data[11] - '0');
+		if (unlikely(tm.tm_sec > 59))
+			return L_TIME_INVALID;
+	}
+
+	/* RFC5280 Section 4.1.2.5.1 */
+	if (tag == ASN1_ID_UTCTIME && tm.tm_year < 50)
+		century = 20;
+
+	tm.tm_year += (century - 19) * 100;
+
+	/* Month number is 1-based in UTCTime and 0-based in struct tm */
+	tm.tm_mon -= 1;
+
+	tt = timegm(&tm);
+	if (unlikely(tt == (time_t) -1))
+		return L_TIME_INVALID;
+
+	if (len == i + 5) {
+		data += i;
+
+		for (i = 1; i < 5; i++)
+			if (unlikely(!l_ascii_isdigit(data[i])))
+				return L_TIME_INVALID;
+
+		tz_hours = (data[1] - '0') * 10 + (data[2] - '0');
+		tz_mins = (data[3] - '0') * 10 + (data[4] - '0');
+
+		if (unlikely(tz_hours > 14 || tz_mins > 59))
+			return L_TIME_INVALID;
+
+		/* The sign converts UTC to local so invert it */
+		if (data[0] == '+')
+			tt -= tz_hours * 3600 + tz_mins * 60;
+		else
+			tt += tz_hours * 3600 + tz_mins * 60;
+	}
+
+	return (uint64_t) tt * L_USEC_PER_SEC + msecs * L_USEC_PER_MSEC;
+}
+
+LIB_EXPORT bool l_cert_get_valid_times(struct l_cert *cert,
+					uint64_t *out_not_before_time,
+					uint64_t *out_not_after_time)
+{
+	const uint8_t *validity;
+	const uint8_t *not_before;
+	const uint8_t *not_after;
+	size_t seq_size;
+	size_t not_before_size;
+	size_t not_after_size;
+	uint8_t not_before_tag;
+	uint8_t not_after_tag;
+	uint64_t not_before_time = 0;
+	uint64_t not_after_time = 0;
+
+	if (unlikely(!cert))
+		return false;
+
+	validity = asn1_der_find_elem_by_path(cert->asn1, cert->asn1_len,
+						ASN1_ID_SEQUENCE, &seq_size,
+						X509_CERTIFICATE_POS,
+						X509_TBSCERTIFICATE_POS,
+						X509_TBSCERT_VALIDITY_POS,
+						-1);
+	if (unlikely(!validity))
+		return false;
+
+	not_before = asn1_der_find_elem(validity, seq_size, 0, &not_before_tag,
+					&not_before_size);
+	if (!not_before)
+		return false;
+
+	seq_size -= not_before_size + (not_before - validity);
+	validity = not_before + not_before_size;
+	not_after = asn1_der_find_elem(validity, seq_size, 0, &not_after_tag,
+					&not_after_size);
+	if (!not_after)
+		return false;
+
+	if (out_not_before_time) {
+		not_before_time = cert_parse_asn1_time(not_before,
+							not_before_size,
+							not_before_tag);
+		if (not_before_time == L_TIME_INVALID)
+			return false;
+	}
+
+	if (out_not_after_time) {
+		/*
+		 * RFC5280 Section 4.1.2.5: "To indicate that a certificate
+		 * has no well-defined expiration date, the notAfter SHOULD
+		 * be assigned the GeneralizedTime value of 99991231235959Z."
+		 */
+		if (not_after_size == 15 &&
+				!memcmp(not_after, "99991231235959Z", 15))
+			not_after_time = 0;
+		else {
+			not_after_time = cert_parse_asn1_time(not_after,
+								not_after_size,
+								not_after_tag);
+			if (not_after_time == L_TIME_INVALID)
+				return false;
+		}
+	}
+
+	if (out_not_before_time)
+		*out_not_before_time = not_before_time;
+
+	if (out_not_after_time)
+		*out_not_after_time = not_after_time;
+
+	return true;
 }
 
 const uint8_t *cert_get_extension(struct l_cert *cert,
