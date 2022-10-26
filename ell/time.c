@@ -58,6 +58,14 @@ LIB_EXPORT uint64_t l_time_now(void)
 	return _time_from_timespec(&now);
 }
 
+uint64_t time_realtime_now(void)
+{
+	struct timespec now;
+
+	clock_gettime(CLOCK_REALTIME, &now);
+	return _time_from_timespec(&now);
+}
+
 /**
  * l_time_after
  *
