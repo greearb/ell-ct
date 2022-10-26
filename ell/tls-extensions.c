@@ -785,7 +785,7 @@ ssize_t tls_parse_signature_algorithms(struct l_tls *tls,
 	return ptr + len - buf;
 }
 
-/* RFC 5462, Section 7.4.1.4.1 */
+/* RFC 5246, Section 7.4.1.4.1 */
 static ssize_t tls_signature_algorithms_client_write(struct l_tls *tls,
 						uint8_t *buf, size_t len)
 {
