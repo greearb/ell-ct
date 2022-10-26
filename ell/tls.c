@@ -46,6 +46,9 @@
 #include "strv.h"
 #include "missing.h"
 #include "string.h"
+#include "settings.h"
+#include "time.h"
+#include "time-private.h"
 
 bool tls10_prf(const void *secret, size_t secret_len,
 		const char *label,
@@ -204,6 +207,9 @@ static void tls_reset_handshake(struct l_tls *tls)
 	TLS_SET_STATE(TLS_HANDSHAKE_WAIT_START);
 	tls->cert_requested = 0;
 	tls->cert_sent = 0;
+
+	tls->session_id_size = 0;
+	tls->session_id_new = false;
 }
 
 static void tls_cleanup_handshake(struct l_tls *tls)
@@ -820,6 +826,31 @@ parse_error:
 	return false;
 }
 
+static void tls_forget_cached_client_session(struct l_tls *tls)
+{
+	/* Note: might want to l_settings_remove_group() instead. */
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionID");
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionMasterSecret");
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionVersion");
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionCipherSuite");
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionCompressionMethod");
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionExpiryTime");
+	l_settings_remove_key(tls->session_settings, tls->session_group,
+				"TLSSessionPeerIdentity");
+
+	if (tls->session_update_cb) {
+		tls->in_callback = true;
+		tls->session_update_cb(tls->session_update_user_data);
+		tls->in_callback = false;
+	}
+}
+
 #define SWITCH_ENUM_TO_STR(val) \
 	case (val):		\
 		return L_STRINGIFY(val);
@@ -868,6 +899,28 @@ static void tls_send_alert(struct l_tls *tls, bool fatal,
 void tls_disconnect(struct l_tls *tls, enum l_tls_alert_desc desc,
 			enum l_tls_alert_desc local_desc)
 {
+	bool forget_session = false;
+
+	if (!tls->server && (desc || local_desc) &&
+			tls->session_settings && tls->session_id_size &&
+			!tls->session_id_new)
+		/*
+		 * RFC5246 Section 7.2: "Alert messages with a level of fatal
+		 * result in the immediate termination of the connection.  In
+		 * this case, other connections corresponding to the session
+		 * may continue, but the session identifier MUST be
+		 * invalidated, preventing the failed session from being used
+		 * to establish new connections."
+		 *
+		 * and 7.2.1: "Note that as of TLS 1.1, failure to properly
+		 * close a connection no longer requires that a session not
+		 * be resumed."
+		 *
+		 * I.e. we need to remove the session from the cache here but
+		 * not on l_tls_close().
+		 */
+		forget_session = true;
+
 	tls_send_alert(tls, true, desc);
 
 	tls_reset_handshake(tls);
@@ -878,6 +931,13 @@ void tls_disconnect(struct l_tls *tls, enum l_tls_alert_desc desc,
 
 	tls->negotiated_version = 0;
 	tls->ready = false;
+
+	if (forget_session) {
+		tls_forget_cached_client_session(tls);
+
+		if (tls->pending_destroy)
+			return;
+	}
 
 	tls->disconnected(local_desc ?: desc, local_desc && !desc,
 				tls->user_data);
@@ -1814,6 +1874,15 @@ static void tls_handle_server_hello(struct l_tls *tls,
 	compression_method_id = buf[35 + session_id_size + 2];
 	len -= session_id_size + 2 + 1;
 
+	if (session_id_size > 32)
+		goto decode_error;
+
+	if (session_id_size && tls->session_settings) {
+		tls->session_id_new = true;
+		tls->session_id_size = session_id_size;
+		memcpy(tls->session_id, buf + 35, session_id_size);
+	}
+
 	extensions_seen = l_queue_new();
 	result = tls_handle_hello_extensions(tls, buf + 38 + session_id_size,
 						len, extensions_seen);
@@ -2350,7 +2419,9 @@ error:
 
 static void tls_finished(struct l_tls *tls)
 {
-	char *peer_identity = NULL;
+	_auto_(l_free) char *peer_identity = NULL;
+	uint64_t peer_cert_expiry;
+	bool session_update = false;
 
 	if (tls->peer_authenticated) {
 		peer_identity = tls_get_peer_identity_str(tls->peer_cert);
@@ -2359,6 +2430,65 @@ static void tls_finished(struct l_tls *tls)
 					"tls_get_peer_identity_str failed");
 			return;
 		}
+
+		if (tls->session_id_new &&
+				!l_cert_get_valid_times(tls->peer_cert, NULL,
+							&peer_cert_expiry)) {
+			TLS_DISCONNECT(TLS_ALERT_INTERNAL_ERROR, 0,
+					"l_cert_get_valid_times failed");
+			return;
+		}
+	}
+
+	if (!tls->server && tls->session_settings && tls->session_id_new) {
+		_auto_(l_free) char *session_id_str =
+			l_util_hexstring(tls->session_id, tls->session_id_size);
+		uint64_t expiry = tls->session_lifetime ?
+			time_realtime_now() + tls->session_lifetime : 0;
+
+		if (tls->peer_authenticated &&
+				(!expiry || peer_cert_expiry < expiry))
+			expiry = peer_cert_expiry;
+
+		l_settings_set_bytes(tls->session_settings, tls->session_group,
+					"TLSSessionID", tls->session_id,
+					tls->session_id_size);
+		l_settings_set_bytes(tls->session_settings, tls->session_group,
+					"TLSSessionMasterSecret",
+					tls->pending.master_secret, 48);
+		l_settings_set_int(tls->session_settings, tls->session_group,
+					"TLSSessionVersion",
+					tls->negotiated_version);
+		l_settings_set_bytes(tls->session_settings, tls->session_group,
+					"TLSSessionCipherSuite",
+					tls->pending.cipher_suite->id, 2);
+		l_settings_set_uint(tls->session_settings, tls->session_group,
+					"TLSSessionCompressionMethod",
+					tls->pending.compression_method->id);
+
+		if (expiry)
+			l_settings_set_uint64(tls->session_settings,
+						tls->session_group,
+						"TLSSessionExpiryTime", expiry);
+		else
+			/* We may be overwriting an older session's data */
+			l_settings_remove_key(tls->session_settings,
+						tls->session_group,
+						"TLSSessionExpiryTime");
+
+		if (tls->peer_authenticated)
+			l_settings_set_string(tls->session_settings,
+						tls->session_group,
+						"TLSSessionPeerIdentity",
+						peer_identity);
+		else
+			/* We may be overwriting an older session's data */
+			l_settings_remove_key(tls->session_settings,
+						tls->session_group,
+						"TLSSessionPeerIdentity");
+
+		TLS_DEBUG("Saving new session %s to cache", session_id_str);
+		session_update = true;
 	}
 
 	/* Free up the resources used in the handshake */
@@ -2367,10 +2497,18 @@ static void tls_finished(struct l_tls *tls)
 	TLS_SET_STATE(TLS_HANDSHAKE_DONE);
 	tls->ready = true;
 
+	if (session_update && tls->session_update_cb) {
+		tls->in_callback = true;
+		tls->session_update_cb(tls->session_update_user_data);
+		tls->in_callback = false;
+
+		if (tls->pending_destroy)
+			return;
+	}
+
 	tls->in_callback = true;
 	tls->ready_handle(peer_identity, tls->user_data);
 	tls->in_callback = false;
-	l_free(peer_identity);
 
 	tls_cleanup_handshake(tls);
 }
@@ -2643,6 +2781,7 @@ LIB_EXPORT struct l_tls *l_tls_new(bool server,
 	tls->cipher_suite_pref_list = tls_cipher_suite_pref;
 	tls->min_version = TLS_MIN_VERSION;
 	tls->max_version = TLS_MAX_VERSION;
+	tls->session_lifetime = 24 * 3600 * L_USEC_PER_SEC;
 
 	/* If we're the server wait for the Client Hello already */
 	if (tls->server)
@@ -2669,6 +2808,7 @@ LIB_EXPORT void l_tls_free(struct l_tls *tls)
 	l_tls_set_auth_data(tls, NULL, NULL);
 	l_tls_set_domain_mask(tls, NULL);
 	l_tls_set_cert_dump_path(tls, NULL);
+	l_tls_set_session_cache(tls, NULL, NULL, 0, NULL, NULL);
 
 	tls_reset_handshake(tls);
 	tls_cleanup_handshake(tls);
@@ -3040,6 +3180,54 @@ LIB_EXPORT void l_tls_set_domain_mask(struct l_tls *tls, char **mask)
 	l_strv_free(tls->subject_mask);
 
 	tls->subject_mask = l_strv_copy(mask);
+}
+
+/**
+ * l_tls_set_session_cache:
+ * @tls: TLS object being configured
+ * @settings: l_settings object to read and write session data from/to or
+ *   NULL to disable caching session states.  The object must remain valid
+ *   until this method is called with a different value.
+ * @group: group name inside @settings
+ * @lifetime: a CLOCK_REALTIME-based microsecond resolution lifetime for
+ *   cached sessions.  The RFC recommends 24 hours.
+ * @update_cb: a callback to be invoked whenever the settings in @settings
+ *   have been updated and may need to be written to persistent storage if
+ *   desired, or NULL.
+ * @user_data: user data pointer to pass to @update_cb.
+ *
+ * Enables caching and resuming session states as described in RFC 5246 for
+ * faster setup.  l_tls will maintain the required session state data in
+ * @settings including removing expired or erroneous sessions.
+ *
+ * A client's cache contains at most one session state since the client
+ * must request one specific Session ID from the server when resuming a
+ * session.  The resumption will only work while the state is cached by
+ * both the server and the client so clients should keep separate @settings
+ * objects or use separate groups inside one object for every discrete
+ * server they may want to connect to.
+ *
+ * Multiple l_tls clients connecting to the same server can share one cache
+ * to allow reusing an established session that is still active (actual
+ * concurrency is not supported as there's no locking.)
+ */
+LIB_EXPORT void l_tls_set_session_cache(struct l_tls *tls,
+					struct l_settings *settings,
+					const char *group_name,
+					uint64_t lifetime,
+					l_tls_session_update_cb_t update_cb,
+					void *user_data)
+{
+	if (unlikely(!tls))
+		return;
+
+	tls->session_settings = settings;
+	tls->session_lifetime = lifetime;
+	tls->session_update_cb = update_cb;
+	tls->session_update_user_data = user_data;
+
+	l_free(tls->session_group);
+	tls->session_group = l_strdup(group_name);
 }
 
 LIB_EXPORT const char *l_tls_alert_to_str(enum l_tls_alert_desc desc)

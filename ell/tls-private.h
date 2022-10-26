@@ -218,6 +218,12 @@ struct l_tls {
 
 	struct tls_cipher_suite **cipher_suite_pref_list;
 
+	struct l_settings *session_settings;
+	char *session_group;
+	uint64_t session_lifetime;
+	l_tls_session_update_cb_t session_update_cb;
+	void *session_update_user_data;
+
 	bool in_callback;
 	bool pending_destroy;
 
@@ -250,6 +256,10 @@ struct l_tls {
 	const struct tls_hash_algorithm *prf_hmac;
 	const struct tls_named_group *negotiated_curve;
 	const struct tls_named_group *negotiated_ff_group;
+
+	uint8_t session_id[32];
+	size_t session_id_size;
+	bool session_id_new;
 
 	/* SecurityParameters current and pending */
 
