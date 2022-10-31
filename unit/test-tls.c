@@ -231,7 +231,10 @@ static void test_certificates(const void *data)
 	struct l_queue *wrongca;
 	struct l_queue *wrongca2;
 	struct l_queue *twocas;
+	struct l_cert *expired;
+	struct l_queue *mixedcas;
 	struct l_certchain *chain;
+	struct l_certchain *expiredchain;
 
 	cacert = l_pem_load_certificate_list(CERTDIR "cert-ca.pem");
 	assert(cacert && !l_queue_isempty(cacert));
@@ -245,8 +248,17 @@ static void test_certificates(const void *data)
 	twocas = l_pem_load_certificate_list(CERTDIR "cert-chain.pem");
 	assert(twocas);
 
+	mixedcas = l_pem_load_certificate_list(CERTDIR "cert-chain.pem");
+	assert(mixedcas);
+	expired = load_cert_file(CERTDIR "cert-expired.pem");
+	assert(expired);
+	l_queue_push_tail(mixedcas, expired);
+
 	chain = l_pem_load_certificate_chain(CERTDIR "cert-server.pem");
 	assert(chain);
+
+	expiredchain = l_pem_load_certificate_chain(CERTDIR "cert-expired.pem");
+	assert(expiredchain);
 
 	assert(!l_certchain_verify(chain, wrongca, NULL));
 	assert(l_certchain_verify(chain, cacert, NULL));
@@ -294,6 +306,7 @@ static void test_certificates(const void *data)
 	assert(l_certchain_verify(chain, cacert, NULL));
 	assert(l_certchain_verify(chain, NULL, NULL));
 	assert(l_certchain_verify(chain, twocas, NULL));
+	assert(l_certchain_verify(chain, mixedcas, NULL));
 
 	l_certchain_free(chain);
 	l_queue_destroy(cacert, (l_queue_destroy_func_t) l_cert_free);
@@ -317,12 +330,17 @@ static void test_certificates(const void *data)
 	assert(l_certchain_verify(chain, cacert, NULL));
 	assert(l_certchain_verify(chain, NULL, NULL));
 	assert(!l_certchain_verify(chain, twocas, NULL));
+	assert(!l_certchain_verify(chain, mixedcas, NULL));
+
+	assert(!l_certchain_verify(expiredchain, NULL, NULL));
 
 	l_certchain_free(chain);
+	l_certchain_free(expiredchain);
 	l_queue_destroy(cacert, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(wrongca, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(wrongca2, (l_queue_destroy_func_t) l_cert_free);
 	l_queue_destroy(twocas, (l_queue_destroy_func_t) l_cert_free);
+	l_queue_destroy(mixedcas, (l_queue_destroy_func_t) l_cert_free);
 }
 
 static void test_ec_certificates(const void *data)
