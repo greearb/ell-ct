@@ -236,7 +236,7 @@ static uint64_t cert_parse_asn1_time(const uint8_t *data, size_t len,
 		return L_TIME_INVALID;
 
 	if (unlikely((len != i + 1 || data[i] != 'Z') &&
-			(len != i + 5 || data[i] != '+' || data[i] != '-')))
+			(len != i + 5 || (data[i] != '+' && data[i] != '-'))))
 		return L_TIME_INVALID;
 
 	tm.tm_year = (data[0] - '0') * 10 + (data[1] - '0');
