@@ -242,7 +242,8 @@ cert_files = unit/cert-chain.pem \
 			unit/cert-entity-pkcs12-rc4-sha384.p12 \
 			unit/cert-entity-pkcs12-pkcs5-sha512.p12 \
 			unit/cert-entity-combined.pem \
-			unit/cert-no-keyid.pem
+			unit/cert-no-keyid.pem \
+			unit/cert-expired.pem
 
 cert_checks = unit/cert-intca \
 			unit/cert-entity-int \
@@ -617,6 +618,29 @@ unit/cert-no-keyid.pem: unit/cert-no-keyid.csr unit/cert-ca2.pem unit/gencerts.c
 unit/cert-no-keyid: unit/cert-no-keyid.pem unit/cert-ca2.pem
 	$(AM_V_GEN)openssl verify -CAfile $(builddir)/unit/cert-ca2.pem $<
 
+unit/cert-expired.csr: unit/cert-client-key-pkcs1.pem unit/gencerts.cnf
+	$(AM_V_GEN)openssl req -new -extensions cert_ext \
+			-config $(srcdir)/unit/gencerts.cnf \
+			-subj '/O=Bar Example Organization/CN=Bar Example Organization/emailAddress=bar@mail.example' \
+			-key $< -out $@
+
+unit/cert-ca.cnf:
+	$(AM_V_GEN)echo -e '[example]\ndatabase = unit/cert-ca-index.txt\npolicy = dummy\nserial = dummy\n[dummy]' > $@
+
+unit/cert-expired.pem: unit/cert-expired.csr unit/cert-ca.pem unit/gencerts.cnf unit/cert-ca.cnf
+	$(AM_V_at)> unit/cert-ca-index.txt
+	$(AM_V_at)$(MKDIR_P) unit/cert-ca-tmp
+	$(AM_V_GEN)openssl ca -batch \
+			-config $(builddir)/unit/cert-ca.cnf -name example \
+			-cert $(builddir)/unit/cert-ca.pem \
+			-keyfile $(builddir)/unit/cert-ca-key.pem \
+			-outdir $(builddir)/unit/cert-ca-tmp \
+			-rand_serial -extensions cert_ext \
+			-extfile $(srcdir)/unit/gencerts.cnf -md sha256 \
+			-startdate 000101120000Z -enddate 010101120000Z \
+			-preserveDN -notext -in $< -out $@ 2> /dev/null
+	$(AM_V_at)rm -r unit/cert-ca-tmp unit/cert-ca-index.txt
+
 unit/cert-entity-pkcs12-nomac.p12: unit/cert-entity-int-key.pem unit/cert-entity-int.pem
 	$(AM_V_GEN)openssl pkcs12 -inkey $< -in $(builddir)/unit/cert-entity-int.pem -out $@ -export -passout pass:abc -nomac # defaut ciphers
 
@@ -660,7 +684,8 @@ endif
 
 clean-local:
 	-rm -f unit/ec-cert*.pem unit/ec-cert-*.csr \
-		unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl unit/key-*.dat
+		unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl unit/key-*.dat \
+		unit/cert-ca-index* unit/cert-ca.cnf
 
 maintainer-clean-local:
 	-rm -rf build-aux

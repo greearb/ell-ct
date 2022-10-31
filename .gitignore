@@ -67,6 +67,8 @@ unit/cert-*.csr
 unit/cert-*.srl
 unit/cert-*.crt
 unit/cert-*.p12
+unit/cert-ca.cnf
+unit/cert-ca-index*
 unit/ec-cert-*.pem
 unit/ec-cert-*.csr
 unit/key-*.dat
