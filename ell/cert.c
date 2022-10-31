@@ -35,6 +35,7 @@
 #include "cipher.h"
 #include "pem-private.h"
 #include "time.h"
+#include "time-private.h"
 #include "utf8.h"
 #include "cert.h"
 #include "cert-private.h"
@@ -562,24 +563,25 @@ LIB_EXPORT void l_certchain_walk_from_ca(struct l_certchain *chain,
 			break;
 }
 
-static struct l_keyring *cert_set_to_keyring(struct l_queue *certs, char *error)
+static struct l_keyring *cert_set_to_keyring(struct l_cert **certs, char *error)
 {
 	struct l_keyring *ring;
-	const struct l_queue_entry *entry;
 	int i = 1;
+	int count;
 
 	ring = l_keyring_new();
 	if (!ring)
 		return NULL;
 
-	for (entry = l_queue_get_entries(certs); entry; entry = entry->next) {
-		struct l_cert *cert = entry->data;
+	for (count = 0; certs[count]; count++);
+
+	for (; *certs; certs++) {
+		struct l_cert *cert = *certs;
 		struct l_key *key = l_cert_get_pubkey(cert);
 
 		if (!key) {
 			sprintf(error, "Can't get public key from certificate "
-				"%i / %i in certificate set", i,
-				l_queue_length(certs));
+				"%i / %i in certificate set", i, count);
 			goto cleanup;
 		}
 
@@ -587,7 +589,7 @@ static struct l_keyring *cert_set_to_keyring(struct l_queue *certs, char *error)
 			l_key_free(key);
 			sprintf(error, "Can't link the public key from "
 				"certificate %i / %i to target keyring",
-				i, l_queue_length(certs));
+				i, count);
 			goto cleanup;
 		}
 
@@ -602,12 +604,10 @@ cleanup:
 	return NULL;
 }
 
-static bool cert_is_in_set(struct l_cert *cert, struct l_queue *set)
+static bool cert_is_in_set(struct l_cert *cert, struct l_cert **set)
 {
-	const struct l_queue_entry *entry;
-
-	for (entry = l_queue_get_entries(set); entry; entry = entry->next) {
-		struct l_cert *cert2 = entry->data;
+	for (; *set; set++) {
+		struct l_cert *cert2 = *set;
 
 		if (cert == cert2)
 			return true;
@@ -619,6 +619,35 @@ static bool cert_is_in_set(struct l_cert *cert, struct l_queue *set)
 	}
 
 	return false;
+}
+
+static struct l_cert **cert_set_filter_by_validity(struct l_queue *set,
+							uint64_t now,
+							int *out_total,
+							int *out_valid)
+{
+	const struct l_queue_entry *entry;
+	_auto_(l_free) struct l_cert **valid;
+
+	*out_total = l_queue_length(set);
+	*out_valid = 0;
+	valid = l_new(struct l_cert *, *out_total + 1);
+
+	for (entry = l_queue_get_entries(set); entry; entry = entry->next) {
+		struct l_cert *cert = entry->data;
+		uint64_t not_before;
+		uint64_t not_after;
+
+		if (!l_cert_get_valid_times(cert, &not_before, &not_after))
+			return NULL;
+
+		if (now < not_before || (not_after && now > not_after))
+			continue;
+
+		valid[(*out_valid)++] = cert;
+	}
+
+	return l_steal_ptr(valid);
 }
 
 static struct l_key *cert_try_link(struct l_cert *cert, struct l_keyring *ring)
@@ -655,21 +684,80 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 	struct l_key *prev_key = NULL;
 	int verified = 0;
 	int ca_match = 0;
-	int i = 0;
-	static char error_buf[200];
+	int i;
+	static char error_buf[1024];
+	int total = 0;
+	uint64_t now;
+	_auto_(l_free) struct l_cert **ca_certs_valid = NULL;
+	int ca_certs_total_count = 0;
+	int ca_certs_valid_count = 0;
 
 	if (unlikely(!chain || !chain->leaf))
 		RETURN_ERROR("Chain empty");
 
+	for (cert = chain->ca; cert; cert = cert->issued, total++);
+
+	now = time_realtime_now();
+
+	for (cert = chain->ca, i = 0; cert; cert = cert->issued, i++) {
+		uint64_t not_before;
+		uint64_t not_after;
+		char time_str[100];
+
+		if (unlikely(!l_cert_get_valid_times(cert, &not_before,
+							&not_after)))
+			RETURN_ERROR("Can't parse validity in certificate "
+					"%i / %i", i + 1, total);
+
+		if (unlikely(now < not_before)) {
+			time_t t = not_before / L_USEC_PER_SEC;
+			struct tm *tm = gmtime(&t);
+
+			if (!tm || !strftime(time_str, sizeof(time_str),
+						"%a %F %T UTC", tm))
+				strcpy(time_str, "<error>");
+
+			RETURN_ERROR("Certificate %i / %i not valid before %s",
+					i + 1, total, time_str);
+		}
+
+		if (unlikely(not_after && now > not_after)) {
+			time_t t = not_after / L_USEC_PER_SEC;
+			struct tm *tm = gmtime(&t);
+
+			if (!tm || !strftime(time_str, sizeof(time_str),
+						"%a %F %T UTC", tm))
+				strcpy(time_str, "<error>");
+
+			RETURN_ERROR("Certificate %i / %i expired on %s",
+					i + 1, total, time_str);
+		}
+	}
+
+	if (ca_certs) {
+		if (unlikely(l_queue_isempty(ca_certs)))
+			RETURN_ERROR("No trusted CA certificates");
+
+		ca_certs_valid = cert_set_filter_by_validity(ca_certs, now,
+							&ca_certs_total_count,
+							&ca_certs_valid_count);
+		if (unlikely(!ca_certs_valid))
+			RETURN_ERROR("Can't parse validity in CA cert(s)");
+
+		if (unlikely(!ca_certs_valid_count))
+			RETURN_ERROR("All trusted CA certs are expired or "
+					"not-yet-valid");
+
+		for (cert = chain->ca, i = 0; cert; cert = cert->issued, i++)
+			if (cert_is_in_set(cert, ca_certs_valid)) {
+				ca_match = i + 1;
+				break;
+			}
+	}
+
 	verify_ring = l_keyring_new();
 	if (!verify_ring)
 		RETURN_ERROR("Can't create verify keyring");
-
-	for (cert = chain->ca; cert; cert = cert->issued, i++)
-		if (cert_is_in_set(cert, ca_certs)) {
-			ca_match = i + 1;
-			break;
-		}
 
 	cert = chain->ca;
 
@@ -690,7 +778,7 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 	 * all of the trusted certificates into the kernel, link them
 	 * to @ca_ring or link @ca_ring to @verify_ring, instead we
 	 * load the first certificate into @verify_ring before we set
-	 * the restric mode on it, same as when no trusted CAs are
+	 * the restrict mode on it, same as when no trusted CAs are
 	 * provided.
 	 *
 	 * Note this happens to work around a kernel issue preventing
@@ -701,7 +789,7 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 	 * the chain.
 	 */
 	if (ca_certs && !ca_match) {
-		ca_ring = cert_set_to_keyring(ca_certs, error_buf);
+		ca_ring = cert_set_to_keyring(ca_certs_valid, error_buf);
 		if (!ca_ring) {
 			if (error)
 				*error = error_buf;
@@ -754,23 +842,28 @@ LIB_EXPORT bool l_certchain_verify(struct l_certchain *chain,
 	}
 
 	if (!prev_key) {
-		int total = 0;
-		char str[100];
-
-		for (cert = chain->ca; cert; cert = cert->issued, total++);
+		char str1[100];
+		char str2[100] = "";
 
 		if (ca_match)
-			snprintf(str, sizeof(str), "%i / %i matched a trusted "
-					"certificate, root not verified",
+			snprintf(str1, sizeof(str1), "%i / %i matched a trusted"
+					" certificate, root not verified",
 					ca_match, total);
 		else
-			snprintf(str, sizeof(str), "root %sverified against "
+			snprintf(str1, sizeof(str1), "root %sverified against "
 					"trusted CA(s)",
-					ca_certs && !ca_match && verified ? "" :
-					"not ");
+					ca_certs && verified ? "" : "not ");
 
-		RETURN_ERROR("Linking certificate %i / %i failed, %s",
-				verified + 1, total, str);
+		if (ca_certs && !ca_match && !verified &&
+				ca_certs_valid_count < ca_certs_total_count)
+			snprintf(str2, sizeof(str2), ", %i out of %i trused "
+					"CA(s) were expired or not-yet-valid",
+					ca_certs_total_count -
+					ca_certs_valid_count,
+					ca_certs_total_count);
+
+		RETURN_ERROR("Linking certificate %i / %i failed, %s%s",
+				verified + 1, total, str1, str2);
 	}
 
 	l_key_free(prev_key);
