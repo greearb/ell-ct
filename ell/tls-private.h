@@ -260,6 +260,8 @@ struct l_tls {
 
 	uint8_t session_id[32];
 	size_t session_id_size;
+	uint8_t session_id_replaced[32];
+	size_t session_id_size_replaced;
 	bool session_id_new;
 	uint8_t session_cipher_suite_id[2];
 	uint8_t session_compression_method_id;
