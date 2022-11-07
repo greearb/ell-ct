@@ -238,7 +238,7 @@ int main(int argc, char *argv[])
 		l_settings_load_from_file(session_cache, session_cache_path);
 
 		l_tls_set_session_cache(tls, session_cache, hostname,
-					24 * 3600 * L_USEC_PER_SEC,
+					24 * 3600 * L_USEC_PER_SEC, 0,
 					https_tls_session_cache_update_cb,
 					NULL);
 	}
