@@ -219,8 +219,9 @@ struct l_tls {
 	struct tls_cipher_suite **cipher_suite_pref_list;
 
 	struct l_settings *session_settings;
-	char *session_group;
+	char *session_prefix;
 	uint64_t session_lifetime;
+	unsigned int session_count_max;
 	l_tls_session_update_cb_t session_update_cb;
 	void *session_update_user_data;
 

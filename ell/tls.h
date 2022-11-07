@@ -130,7 +130,8 @@ void l_tls_set_version_range(struct l_tls *tls,
 void l_tls_set_domain_mask(struct l_tls *tls, char **mask);
 
 void l_tls_set_session_cache(struct l_tls *tls, struct l_settings *settings,
-				const char *group_name, uint64_t lifetime,
+				const char *group_prefix, uint64_t lifetime,
+				unsigned int max_sessions,
 				l_tls_session_update_cb_t update_cb,
 				void *user_data);
 
