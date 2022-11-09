@@ -1234,6 +1234,7 @@ void tls_disconnect(struct l_tls *tls, enum l_tls_alert_desc desc,
 
 	tls->negotiated_version = 0;
 	tls->ready = false;
+	tls->renegotiation_info.secure_renegotiation = false;
 
 	if (forget_session) {
 		tls_forget_cached_session(tls, NULL, tls->session_id,
@@ -1749,7 +1750,7 @@ static void tls_send_change_cipher_spec(struct l_tls *tls)
 	tls_tx_record(tls, TLS_CT_CHANGE_CIPHER_SPEC, &buf, 1);
 }
 
-static size_t tls_verify_data_length(struct l_tls *tls, unsigned int index)
+size_t tls_verify_data_length(struct l_tls *tls, unsigned int index)
 {
 	/*
 	 * RFC 5246, Section 7.4.9:
@@ -1762,7 +1763,34 @@ static size_t tls_verify_data_length(struct l_tls *tls, unsigned int index)
 	return maxsize(tls->cipher_suite[index]->verify_data_length, 12);
 }
 
-static void tls_send_finished(struct l_tls *tls)
+static bool tls_save_verify_data(struct l_tls *tls, bool txrx,
+					const uint8_t *vd, size_t vdl)
+{
+	uint8_t *buf;
+
+	if (tls->server == txrx) {
+		if (vdl > sizeof(tls->renegotiation_info.server_verify_data))
+			goto error;
+
+		buf = tls->renegotiation_info.server_verify_data;
+	} else {
+		if (vdl > sizeof(tls->renegotiation_info.client_verify_data))
+			goto error;
+
+		buf = tls->renegotiation_info.client_verify_data;
+	}
+
+	memcpy(buf, vd, vdl);
+	return true;
+
+error:
+	TLS_DISCONNECT(TLS_ALERT_INTERNAL_ERROR, 0,
+			"tls->renegotiation_info.*verify too small for %s, "
+			"report an ell bug", tls->cipher_suite[txrx]->name);
+	return false;
+}
+
+static bool tls_send_finished(struct l_tls *tls)
 {
 	uint8_t buf[512];
 	uint8_t *ptr = buf + TLS_HANDSHAKE_HEADER_SIZE;
@@ -1785,9 +1813,14 @@ static void tls_send_finished(struct l_tls *tls)
 				"client finished",
 				seed, seed_len,
 				ptr, vdl);
+
+	if (!tls_save_verify_data(tls, 1, ptr, vdl))
+		return false;
+
 	ptr += vdl;
 
 	tls_tx_handshake(tls, TLS_FINISHED, buf, ptr - buf);
+	return true;
 }
 
 static bool tls_verify_finished(struct l_tls *tls, const uint8_t *received,
@@ -1829,6 +1862,9 @@ static bool tls_verify_finished(struct l_tls *tls, const uint8_t *received,
 
 		return false;
 	}
+
+	if (!tls_save_verify_data(tls, 0, received, vdl))
+		return false;
 
 	return true;
 }
@@ -1992,6 +2028,10 @@ static void tls_server_resume_error(struct l_tls *tls)
 	l_free(l_steal_ptr(tls->session_peer_identity));
 }
 
+/* RFC 5746 */
+static const uint8_t tls_empty_renegotiation_info_scsv[2] = { 0x00, 0xff };
+static const uint16_t tls_renegotiation_info_id = 0xff01;
+
 static void tls_handle_client_hello(struct l_tls *tls,
 					const uint8_t *buf, size_t len)
 {
@@ -2098,6 +2138,30 @@ static void tls_handle_client_hello(struct l_tls *tls,
 		TLS_DISCONNECT(TLS_ALERT_INTERNAL_ERROR, 0,
 				"No usable cipher suites");
 		goto cleanup;
+	}
+
+	if (!tls->renegotiation_info.secure_renegotiation || tls->ready) {
+		for (i = 0; i < cipher_suites_size; i += 2)
+			if (l_get_be16(cipher_suites + i) == l_get_be16(
+					tls_empty_renegotiation_info_scsv))
+				break;
+
+		if (i < cipher_suites_size) {
+			if (unlikely(tls->ready)) {
+				TLS_DISCONNECT(TLS_ALERT_ILLEGAL_PARAM, 0,
+						"Empty renegotiation_info in "
+						"renegotiation Client Hello");
+				goto cleanup;
+			}
+
+			/*
+			 * RFC 5746 Section 3.6, act as if we had received an
+			 * empty renegotiation_info extension.
+			 */
+			tls->renegotiation_info.secure_renegotiation = true;
+			l_queue_push_tail(extensions_offered, L_UINT_TO_PTR(
+						tls_renegotiation_info_id));
+		}
 	}
 
 	/* Select a cipher suite according to client's preference list */
@@ -2243,7 +2307,9 @@ static void tls_handle_client_hello(struct l_tls *tls,
 			return;
 		}
 
-		tls_send_finished(tls);
+		if (!tls_send_finished(tls))
+			return;
+
 		TLS_SET_STATE(TLS_HANDSHAKE_WAIT_CHANGE_CIPHER_SPEC);
 		return;
 	}
@@ -2721,7 +2787,8 @@ static void tls_handle_server_hello_done(struct l_tls *tls,
 		return;
 	}
 
-	tls_send_finished(tls);
+	if (!tls_send_finished(tls))
+		return;
 
 	TLS_SET_STATE(TLS_HANDSHAKE_WAIT_CHANGE_CIPHER_SPEC);
 }
@@ -3222,7 +3289,9 @@ static void tls_handle_handshake(struct l_tls *tls, int type,
 						error);
 				break;
 			}
-			tls_send_finished(tls);
+
+			if (!tls_send_finished(tls))
+				break;
 		}
 
 		/*

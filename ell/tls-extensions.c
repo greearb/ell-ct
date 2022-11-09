@@ -850,6 +850,130 @@ static bool tls_signature_algorithms_client_absent(struct l_tls *tls)
 	return true;
 }
 
+/* RFC 5746, Section 3.2 */
+static ssize_t tls_renegotiation_info_client_write(struct l_tls *tls,
+						uint8_t *buf, size_t len)
+{
+	/*
+	 * Section 4.2 implies we should send the client_verify_data on
+	 * renegotiation even if .secure_renegotiation is false, if we want
+	 * to go through with the renegotiation in the first place.
+	 */
+	if (tls->ready) {
+		size_t vdl = tls_verify_data_length(tls, 1);
+
+		if (len < vdl + 1)
+			return -ENOMEM;
+
+		buf[0] = vdl;
+		memcpy(buf + 1, tls->renegotiation_info.client_verify_data,
+			vdl);
+		return 1 + vdl;
+	} else {
+		if (len < 1)
+			return -ENOMEM;
+
+		buf[0] = 0x00;	/* Empty "renegotiated_connection" */
+		return 1;
+	}
+}
+
+static ssize_t tls_renegotiation_info_server_write(struct l_tls *tls,
+						uint8_t *buf, size_t len)
+{
+	if (tls->ready) {
+		size_t rx_vdl = tls_verify_data_length(tls, 0);
+		size_t tx_vdl = tls_verify_data_length(tls, 1);
+
+		if (len < rx_vdl + tx_vdl + 1)
+			return -ENOMEM;
+
+		buf[0] = rx_vdl + tx_vdl;
+		memcpy(buf + 1,
+			tls->renegotiation_info.client_verify_data, rx_vdl);
+		memcpy(buf + 1 + rx_vdl,
+			tls->renegotiation_info.server_verify_data, tx_vdl);
+		return 1 + rx_vdl + tx_vdl;
+	} else {
+		if (len < 1)
+			return -ENOMEM;
+
+		buf[0] = 0x00;	/* Empty "renegotiated_connection" */
+		return 1;
+	}
+}
+
+static bool tls_renegotiation_info_client_handle(struct l_tls *tls,
+						const uint8_t *buf, size_t len)
+{
+	if (tls->ready) {
+		size_t vdl = tls_verify_data_length(tls, 0);
+
+		return len >= 1 + vdl &&
+			tls->renegotiation_info.secure_renegotiation &&
+			!memcmp(tls->renegotiation_info.client_verify_data,
+				buf + 1, vdl);
+	}
+
+	/*
+	 * RFC 5746 Section 3.6: "The server MUST then verify that the length
+	 * of the "renegotiated_connection" field is zero, ..."
+	 */
+	if (len < 1 || buf[0] != 0x00)
+		return false;
+
+	tls->renegotiation_info.secure_renegotiation = true;
+	return true;
+}
+
+static bool tls_renegotiation_info_server_handle(struct l_tls *tls,
+						const uint8_t *buf, size_t len)
+{
+	if (tls->ready) {
+		size_t rx_vdl = tls_verify_data_length(tls, 0);
+		size_t tx_vdl = tls_verify_data_length(tls, 1);
+
+		return len >= 1 + rx_vdl + tx_vdl &&
+			tls->renegotiation_info.secure_renegotiation &&
+			!memcmp(tls->renegotiation_info.client_verify_data,
+				buf + 1, tx_vdl) &&
+			!memcmp(tls->renegotiation_info.server_verify_data,
+				buf + 1 + tx_vdl, rx_vdl);
+	}
+
+	/*
+	 * RFC 5746 Section 3.4: "The client MUST then verify that the length
+	 * of the "renegotiated_connection" field is zero, ..."
+	 */
+	if (len < 1 || buf[0] != 0x00)
+		return false;
+
+	tls->renegotiation_info.secure_renegotiation = true;
+	return true;
+}
+
+static bool tls_renegotiation_info_absent(struct l_tls *tls)
+{
+	/*
+	 * RFC 5746 Section 4.2: "It is possible that un-upgraded servers
+	 * will request that the client renegotiate.  It is RECOMMENDED
+	 * that clients refuse this renegotiation request." and Section 4.4:
+	 * "It is RECOMMENDED that servers not permit legacy renegotiation."
+	 *
+	 * This may need to be made configurable, for now follow the
+	 * recommendation and don't renegotiate.
+	 */
+	if (tls->ready)
+		return false;
+
+	/*
+	 * The normal policy otherwise is that the extension must be
+	 * present in renegotation if the previous Client or Server Hello
+	 * did include this extension, or the SCSV in the Client Hello case.
+	 */
+	return !tls->ready || !tls->renegotiation_info.secure_renegotiation;
+}
+
 const struct tls_hello_extension tls_extensions[] = {
 	{
 		"Supported Groups", "elliptic_curves", 10,
@@ -872,6 +996,15 @@ const struct tls_hello_extension tls_extensions[] = {
 		tls_signature_algorithms_client_handle,
 		tls_signature_algorithms_client_absent,
 		NULL, NULL, NULL,
+	},
+	{
+		"Secure Renegotiation", "renegotiation_info", 0xff01,
+		tls_renegotiation_info_client_write,
+		tls_renegotiation_info_client_handle,
+		tls_renegotiation_info_absent,
+		tls_renegotiation_info_server_write,
+		tls_renegotiation_info_server_handle,
+		tls_renegotiation_info_absent,
 	},
 	{}
 };
