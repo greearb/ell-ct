@@ -198,6 +198,7 @@ static void tls_reset_handshake(struct l_tls *tls)
 	tls->peer_cert = NULL;
 	tls->peer_pubkey = NULL;
 	tls->peer_pubkey_size = 0;
+	tls->peer_authenticated = false;
 	tls->negotiated_curve = NULL;
 	tls->negotiated_ff_group = NULL;
 
@@ -2898,6 +2899,7 @@ static void tls_finished(struct l_tls *tls)
 	uint64_t peer_cert_expiry;
 	bool resuming = tls->session_id_size && !tls->session_id_new;
 	bool session_update = false;
+	bool renegotiation = tls->ready;
 
 	if (tls->peer_authenticated && !resuming) {
 		peer_cert_identity = tls_get_peer_identity_str(tls->peer_cert);
@@ -2998,9 +3000,11 @@ static void tls_finished(struct l_tls *tls)
 			return;
 	}
 
-	tls->in_callback = true;
-	tls->ready_handle(peer_identity, tls->user_data);
-	tls->in_callback = false;
+	if (!renegotiation) {
+		tls->in_callback = true;
+		tls->ready_handle(peer_identity, tls->user_data);
+		tls->in_callback = false;
+	}
 
 	tls_cleanup_handshake(tls);
 }
@@ -3033,7 +3037,16 @@ static void tls_handle_handshake(struct l_tls *tls, int type,
 		 * and "MAY be ignored by the client if it does not wish to
 		 * renegotiate a session".
 		 */
+		if (tls->state != TLS_HANDSHAKE_DONE) {
+			TLS_DEBUG("Message invalid in state %s",
+					tls_handshake_state_to_str(tls->state));
+			break;
+		}
 
+		if (!tls_send_client_hello(tls))
+			break;
+
+		TLS_SET_STATE(TLS_HANDSHAKE_WAIT_HELLO);
 		break;
 
 	case TLS_CLIENT_HELLO:
