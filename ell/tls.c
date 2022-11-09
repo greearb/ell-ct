@@ -2053,11 +2053,8 @@ static void tls_handle_client_hello(struct l_tls *tls,
 			tls_load_cached_server_session(tls, buf + 35,
 							session_id_size)) {
 		/*
-		 * Attempt a session resumption but don't skip parsing Hello
-		 * extensions just yet because we may decide to start a new
-		 * session instead after our cipher suite and compression
-		 * method checks below and in that case we will need to
-		 * handle the extensions and include them in the Server Hello.
+		 * Attempt a session resumption but note later checks may
+		 * spoil this.
 		 */
 		resuming = true;
 		session_id_str = l_util_hexstring(tls->session_id,
@@ -2228,7 +2225,7 @@ static void tls_handle_client_hello(struct l_tls *tls,
 		l_getrandom(tls->session_id, 32);
 	}
 
-	if (!tls_send_server_hello(tls, resuming ? extensions_offered : NULL))
+	if (!tls_send_server_hello(tls, extensions_offered))
 		goto cleanup;
 
 	l_queue_destroy(extensions_offered, NULL);
@@ -2324,23 +2321,16 @@ static void tls_handle_server_hello(struct l_tls *tls,
 			TLS_DEBUG("Negotiated resumption of cached session %s",
 					session_id_str);
 			resuming = true;
-
-			/*
-			 * Skip parsing extensions as none of the ones we
-			 * support are used in session resumption.  We could
-			 * as well signal an error if the ServerHello has any
-			 * extensions, for now ignore them.
-			 */
-			goto check_version;
+		} else {
+			TLS_DEBUG("Server decided not to resume cached session "
+					"%s, sent %s session ID",
+					session_id_str,
+					session_id_size ? "a new" : "no");
+			tls->session_id_size = 0;
 		}
-
-		TLS_DEBUG("Server decided not to resume cached session %s, "
-				"sent %s session ID", session_id_str,
-				session_id_size ? "a new" : "no");
-		tls->session_id_size = 0;
 	}
 
-	if (session_id_size && tls->session_settings) {
+	if (session_id_size && !resuming && tls->session_settings) {
 		tls->session_id_new = true;
 		tls->session_id_size = session_id_size;
 		memcpy(tls->session_id, buf + 35, session_id_size);
@@ -2354,7 +2344,6 @@ static void tls_handle_server_hello(struct l_tls *tls,
 	if (!result)
 		return;
 
-check_version:
 	if (version < tls->min_version || version > tls->max_version) {
 		TLS_DISCONNECT(version < tls->min_version ?
 				TLS_ALERT_PROTOCOL_VERSION :

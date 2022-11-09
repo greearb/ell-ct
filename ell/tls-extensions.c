@@ -31,6 +31,13 @@
 #include "cert.h"
 #include "tls-private.h"
 
+/* Most extensions are not used when resuming a cached session */
+#define SKIP_ON_RESUMPTION()	\
+	do {	\
+		if (tls->session_id_size && !tls->session_id_new)	\
+			return -ENOMSG;	\
+	} while (0);
+
 /* RFC 7919, Section A.1 */
 static const uint8_t tls_ffdhe2048_prime[] = {
 	0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xad, 0xf8, 0x54, 0x58,
@@ -560,6 +567,8 @@ static bool tls_ec_point_formats_client_handle(struct l_tls *tls,
 static ssize_t tls_ec_point_formats_server_write(struct l_tls *tls,
 						uint8_t *buf, size_t len)
 {
+	SKIP_ON_RESUMPTION(); /* RFC 4492 Section 4 */
+
 	if (len < 2)
 		return -ENOMEM;
 
