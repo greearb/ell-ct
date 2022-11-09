@@ -1084,6 +1084,7 @@ static bool tls_load_cached_server_session(struct l_tls *tls,
 					*group + prefix_len + 1);
 			l_settings_remove_group(tls->session_settings, *group);
 			changed = true;
+			continue;
 		}
 
 		cnt++;
