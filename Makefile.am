@@ -683,8 +683,9 @@ check-local: $(cert_checks)
 endif
 
 clean-local:
-	-rm -f unit/ec-cert*.pem unit/ec-cert-*.csr \
-		unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl unit/key-*.dat \
+	-rm -f unit/ec-cert*.pem unit/ec-cert-*.csr unit/cert-*.crt \
+		unit/cert-*.pem unit/cert-*.csr unit/cert-*.srl \
+		unit/cert-entity-pkcs12-*.p12 unit/key-*.dat \
 		unit/cert-ca-index* unit/cert-ca.cnf
 
 maintainer-clean-local:
