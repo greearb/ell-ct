@@ -625,7 +625,7 @@ unit/cert-expired.csr: unit/cert-client-key-pkcs1.pem unit/gencerts.cnf
 			-key $< -out $@
 
 unit/cert-ca.cnf:
-	$(AM_V_GEN)echo -e '[example]\ndatabase = unit/cert-ca-index.txt\npolicy = dummy\nserial = dummy\n[dummy]' > $@
+	$(AM_V_GEN)echo -e '[example]\ndatabase=unit/cert-ca-index.txt\nserial=unit/cert-ca.srl\npolicy=dummy\n[dummy]' > $@
 
 unit/cert-expired.pem: unit/cert-expired.csr unit/cert-ca.pem unit/gencerts.cnf unit/cert-ca.cnf
 	$(AM_V_at)> unit/cert-ca-index.txt
