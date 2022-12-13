@@ -365,12 +365,27 @@ static int dhcp_client_send_unicast(struct l_dhcp_client *client,
 					unsigned int len)
 {
 	struct sockaddr_in si;
+	int r;
 
 	memset(&si, 0, sizeof(si));
 	si.sin_family = AF_INET;
 	si.sin_port = L_CPU_TO_BE16(DHCP_PORT_SERVER);
 	si.sin_addr.s_addr = client->lease->server_address;
-	return client->transport->send(client->transport, &si, request, len);
+
+	/*
+	 * sendto() might fail with an EPERM error, which most likely means
+	 * that the unicast was prevented by netfilter.  Ignore this case
+	 * and assume that once the REBINDING timeout is hit, a broadcast
+	 * will go through which will have a chance of renewing the lease
+	 */
+	r = client->transport->send(client->transport, &si, request, len);
+	if (r == -EPERM) {
+		CLIENT_DEBUG("transport->send() failed with EPERM -> ignore");
+		CLIENT_DEBUG("Is a firewall denying unicast DHCP packets?");
+		return 0;
+	}
+
+	return r;
 }
 
 static int dhcp_client_send_request(struct l_dhcp_client *client)
