@@ -1,3 +1,6 @@
+ver 0.55:
+	Fix issue with DHCP and blocked unicast requests.
+
 ver 0.54:
 	Add support for DHCPv6 SLAAC address creation.
 	Add support for control of optimistic DAD feature.
