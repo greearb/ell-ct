@@ -213,6 +213,7 @@ static void tls_reset_handshake(struct l_tls *tls)
 	tls->session_id_size_replaced = 0;
 	tls->session_id_new = false;
 	l_free(l_steal_ptr(tls->session_peer_identity));
+	tls->session_resumed = false;
 }
 
 static void tls_cleanup_handshake(struct l_tls *tls)
@@ -3058,6 +3059,7 @@ static void tls_finished(struct l_tls *tls)
 
 	TLS_SET_STATE(TLS_HANDSHAKE_DONE);
 	tls->ready = true;
+	tls->session_resumed = resuming;
 
 	if (session_update && tls->session_update_cb) {
 		tls->in_callback = true;
@@ -3839,6 +3841,14 @@ LIB_EXPORT void l_tls_set_session_cache(struct l_tls *tls,
 
 	l_free(tls->session_prefix);
 	tls->session_prefix = l_strdup(group_prefix);
+}
+
+LIB_EXPORT bool l_tls_get_session_resumed(struct l_tls *tls)
+{
+	if (unlikely(!tls || !tls->ready))
+		return false;
+
+	return tls->session_resumed;
 }
 
 LIB_EXPORT const char *l_tls_alert_to_str(enum l_tls_alert_desc desc)

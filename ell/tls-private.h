@@ -266,6 +266,7 @@ struct l_tls {
 	uint8_t session_cipher_suite_id[2];
 	uint8_t session_compression_method_id;
 	char *session_peer_identity;
+	bool session_resumed;
 
 	struct {
 		bool secure_renegotiation;

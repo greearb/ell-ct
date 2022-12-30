@@ -134,6 +134,7 @@ void l_tls_set_session_cache(struct l_tls *tls, struct l_settings *settings,
 				unsigned int max_sessions,
 				l_tls_session_update_cb_t update_cb,
 				void *user_data);
+bool l_tls_get_session_resumed(struct l_tls *tls);
 
 const char *l_tls_alert_to_str(enum l_tls_alert_desc desc);
 

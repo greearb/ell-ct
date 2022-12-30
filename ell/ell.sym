@@ -519,6 +519,7 @@ global:
 	l_tls_set_version_range;
 	l_tls_set_domain_mask;
 	l_tls_set_session_cache;
+	l_tls_get_session_resumed;
 	l_tls_alert_to_str;
 	l_tls_set_debug;
 	l_tls_set_cert_dump_path;
