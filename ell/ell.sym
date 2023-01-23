@@ -15,6 +15,8 @@ global:
 	l_streq0;
 	l_util_hexstring;
 	l_util_hexstring_upper;
+	l_util_hexstringv;
+	l_util_hexstringv_upper;
 	l_util_from_hexstring;
 	l_util_hexdump;
 	l_util_hexdump_two;

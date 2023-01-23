@@ -282,6 +282,8 @@ bool l_streq0(const char *a, const char *b);
 
 char *l_util_hexstring(const void *buf, size_t len);
 char *l_util_hexstring_upper(const void *buf, size_t len);
+char *l_util_hexstringv(const struct iovec *iov, size_t n_iov);
+char *l_util_hexstringv_upper(const struct iovec *iov, size_t n_iov);
 unsigned char *l_util_from_hexstring(const char *str, size_t *out_len);
 
 typedef void (*l_util_hexdump_func_t) (const char *str, void *user_data);
