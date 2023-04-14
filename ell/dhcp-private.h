@@ -87,7 +87,7 @@ struct dhcp_message {
 	uint8_t sname[64];
 	uint8_t file[128];
 	__be32 magic;
-	uint8_t options[0];
+	uint8_t options[];
 } __attribute__ ((packed));
 
 struct dhcp_message_iter {

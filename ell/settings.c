@@ -61,7 +61,7 @@ struct embedded_group_data {
 	char *name;
 	char type[32];
 	size_t len;
-	char data[0];
+	char data[];
 };
 
 struct group_data {

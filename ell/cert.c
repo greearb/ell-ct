@@ -67,7 +67,7 @@ struct l_cert {
 	struct l_cert *issuer;
 	struct l_cert *issued;
 	size_t asn1_len;
-	uint8_t asn1[0];
+	uint8_t asn1[];
 };
 
 struct l_certchain {
