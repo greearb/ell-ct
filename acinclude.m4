@@ -64,6 +64,10 @@ AC_DEFUN([COMPILER_FLAGS], [
 		if ( $CC -v 2>/dev/null | grep "gcc version" ); then
 			CFLAGS+=" -Wcast-align"
 		fi
+
+		if (test "$CC" = "clang"); then
+			CFLAGS+=" -Werror=zero-length-array"
+		fi
 	fi
 
 	if (test "$CC" = "clang"); then
