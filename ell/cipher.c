@@ -338,9 +338,14 @@ static ssize_t operate_cipher(int sk, __u32 operation,
 
 		iov[0].iov_base = (void *) ad;
 		iov[0].iov_len = ad_len;
-		iov[1].iov_base = (void *) in;
-		iov[1].iov_len = in_len;
-		msg.msg_iovlen = 2;
+
+		msg.msg_iovlen = 1;
+
+		if (in) {
+			iov[1].iov_base = (void *) in;
+			iov[1].iov_len = in_len;
+			msg.msg_iovlen = 2;
+		}
 	} else {
 		iov[0].iov_base = (void *) in;
 		iov[0].iov_len = in_len;
