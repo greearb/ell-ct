@@ -292,7 +292,6 @@ static const struct aead_test_vector gcm_test6 = {
 
 static void test_aead(const void *data)
 {
-	static uint8_t empty[] = { };
 	struct l_aead_cipher *cipher;
 	char *encbuf;
 	size_t encbuflen;
@@ -303,7 +302,7 @@ static void test_aead(const void *data)
 	const struct aead_test_vector *tv = data;
 
 	size_t ptlen = 0;
-	uint8_t *pt = empty;
+	uint8_t *pt = NULL;
 	size_t aadlen = 0;
 	uint8_t *aad = NULL;
 	size_t keylen;
@@ -311,7 +310,7 @@ static void test_aead(const void *data)
 	size_t noncelen;
 	uint8_t *nonce = l_util_from_hexstring(tv->nonce, &noncelen);
 	size_t ctlen = 0;
-	uint8_t *ct = empty;
+	uint8_t *ct = NULL;
 	size_t taglen;
 	uint8_t *tag = l_util_from_hexstring(tv->tag, &taglen);
 
