@@ -252,8 +252,10 @@ cert_checks = unit/cert-intca \
 			unit/cert-client \
 			unit/cert-no-keyid
 
+if TESTS
 if MAINTAINER_MODE
 noinst_PROGRAMS += $(unit_tests) $(dbus_tests) $(cert_tests)
+endif
 endif
 
 unit_test_unit_LDADD = ell/libell-private.la
@@ -348,18 +350,18 @@ unit_test_net_LDADD = ell/libell-private.la
 
 unit_test_data_files = unit/settings.test unit/dbus.conf
 
-examples = examples/dbus-service examples/https-client-test \
-		examples/https-server-test examples/dbus-client \
-		examples/dhcp-client examples/dhcp6-client \
-		examples/dhcp-server examples/acd-client \
-		examples/netconfig-test
+if EXAMPLES
+if MAINTAINER_MODE
+noinst_PROGRAMS += examples/dbus-service examples/https-client-test \
+			examples/https-server-test examples/dbus-client \
+			examples/dhcp-client examples/dhcp6-client \
+			examples/dhcp-server examples/acd-client \
+			examples/netconfig-test
 
 if GLIB
-examples += examples/glib-eventloop
+noinst_PROGRAMS += examples/glib-eventloop
 endif
-
-if MAINTAINER_MODE
-noinst_PROGRAMS += $(examples)
+endif
 endif
 
 examples_dbus_service_LDADD = ell/libell-private.la
@@ -374,8 +376,11 @@ examples_dhcp_server_LDADD = ell/libell-private.la
 examples_acd_client_LDADD = ell/libell-private.la
 examples_netconfig_test_LDADD = ell/libell-private.la
 
+if TOOLS
 noinst_PROGRAMS += tools/certchain-verify tools/genl-discover \
 		   tools/genl-watch tools/genl-request tools/gpio
+endif
+
 tools_certchain_verify_SOURCES = tools/certchain-verify.c
 tools_certchain_verify_LDADD = ell/libell-private.la
 
@@ -676,10 +681,12 @@ unit/key-signature.dat: unit/plaintext.txt unit/cert-client-key-pkcs1.pem
 unit/key-signature.h: unit/key-signature.dat
 	$(AM_V_GEN)xxd -i < $< > $@
 
+if TESTS
 if MAINTAINER_MODE
 BUILT_SOURCES = unit/key-plaintext.h unit/key-ciphertext.h unit/key-signature.h
 
 check-local: $(cert_checks)
+endif
 endif
 
 clean-local:
