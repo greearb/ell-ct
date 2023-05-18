@@ -1910,10 +1910,22 @@ LIB_EXPORT bool l_genl_family_cancel(struct l_genl_family *family,
 	if (request)
 		goto done;
 
-	request = l_queue_remove_if(genl->pending_list, match_request_id,
+	request = l_queue_find(genl->pending_list, match_request_id,
 							L_UINT_TO_PTR(id));
 	if (!request)
 		return false;
+
+	/*
+	 * A message in-flight still needs to wait for NLMSG_DONE so clean up
+	 * for the caller but keep the request queued until its done.
+	 */
+	if (request->destroy)
+		request->destroy(request->user_data);
+
+	request->callback = NULL;
+	request->destroy = NULL;
+
+	return true;
 
 done:
 	destroy_request(request);
