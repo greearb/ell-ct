@@ -1,3 +1,6 @@
+ver 0.57:
+	Fix issue with handling Generic Netlink cancel requests.
+
 ver 0.56:
 	Add support for TLS session resume interfaces.
 
