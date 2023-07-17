@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <stdint.h>
+#include <errno.h>
 
 #include "utf8.h"
 #include "util.h"
@@ -744,4 +746,84 @@ __attribute__((noinline)) static int __secure_memeq(const void *field,
 LIB_EXPORT bool l_secure_memeq(const void *field, size_t size, uint8_t byte)
 {
 	return __secure_memeq(field, size, byte) == 0 ? true : false;
+}
+
+static int safe_atou(const char *s, int base, unsigned int *out_u)
+{
+	unsigned long int r;
+	unsigned int t;
+	char *endp;
+
+	errno = 0;
+
+	t = r = strtoul(s, &endp, base);
+	if (unlikely(errno > 0))
+		return -errno;
+
+	if (endp == s || *endp != '\0')
+		return -EINVAL;
+
+	if (unlikely(r != t))
+		return -ERANGE;
+
+	if (out_u)
+		*out_u = t;
+
+	return 0;
+}
+
+LIB_EXPORT int l_safe_atou32(const char *s, uint32_t *out_u)
+{
+	if (!l_ascii_isdigit(s[0]))
+		return -EINVAL;
+
+	/* Don't allow leading zeros */
+	if (s[0] == '0' && s[1] != '\0')
+		return -EINVAL;
+
+	return safe_atou(s, 10, out_u);
+}
+
+LIB_EXPORT int l_safe_atox8(const char *s, uint8_t *out_x)
+{
+	uint32_t x;
+	int r;
+
+	r = l_safe_atox32(s, &x);
+	if (r < 0)
+		return r;
+
+	if (x > UINT8_MAX)
+		return -ERANGE;
+
+	if (out_x)
+		*out_x = x;
+
+	return 0;
+}
+
+LIB_EXPORT int l_safe_atox16(const char *s, uint16_t *out_x)
+{
+	uint32_t x;
+	int r;
+
+	r = l_safe_atox32(s, &x);
+	if (r < 0)
+		return r;
+
+	if (x > UINT16_MAX)
+		return -ERANGE;
+
+	if (out_x)
+		*out_x = x;
+
+	return 0;
+}
+
+LIB_EXPORT int l_safe_atox32(const char *s, uint32_t *out_x)
+{
+	if (!l_ascii_isxdigit(s[0]))
+		return -EINVAL;
+
+	return safe_atou(s, 16, out_x);
 }

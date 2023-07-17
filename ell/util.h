@@ -427,6 +427,11 @@ static inline void l_secure_select(bool select_left,
 		o[i] = r[i] ^ ((l[i] ^ r[i]) & mask);
 }
 
+int l_safe_atou32(const char *s, uint32_t *out_u);
+int l_safe_atox32(const char *s, uint32_t *out_u);
+int l_safe_atox16(const char *s, uint16_t *out_u);
+int l_safe_atox8(const char *s, uint8_t *out_u);
+
 #ifdef __cplusplus
 }
 #endif
