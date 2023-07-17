@@ -152,6 +152,7 @@ static const char *data1 = "[Foobar]\n#Comment\n#Comment2\nKey=Value\n"
 		"IntegerG=2247483647\nIntegerH=4294967296\n"
 		"IntegerI=9223372036854775808\n"
 		"IntegerJ=18446744073709551616\n"
+		"IntegerEmpty=\n"
 		"String=\\tFoobar\\s\n"
 		"StringEmpty=\n"
 		"StringBad1=Foobar\\\n"
@@ -214,6 +215,10 @@ static void test_settings(struct l_settings *settings)
 	assert(!l_settings_get_uint(settings, "Foobar", "FoobarH", &uint32));
 	assert(!l_settings_get_int64(settings, "Foobar", "IntegerI", &int64));
 	assert(!l_settings_get_uint64(settings, "Foobar", "IntegerJ", &uint64));
+	assert(!l_settings_get_int(settings, "Foobar",
+					"IntegerEmpty", &int32));
+	assert(!l_settings_get_uint(settings, "Foobar",
+					"IntegerEmpty", &uint32));
 
 	str = l_settings_get_string(settings, "Foobar", "String");
 	assert(str);
