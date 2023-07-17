@@ -25,6 +25,9 @@
 #endif
 
 #include <assert.h>
+#include <limits.h>
+#include <stdio.h>
+#include <errno.h>
 
 #include <ell/ell.h>
 
@@ -163,6 +166,50 @@ static void test_in_set(const void *test_data)
 	assert(!L_IN_STRSET("a"));
 }
 
+static void test_safe_atoux(const void *test_data)
+{
+	uint32_t r;
+	uint16_t h;
+	uint8_t c;
+	char s[64];
+
+	assert(!l_safe_atou32("234233", &r) && r == 234233);
+	assert(!l_safe_atou32("0", &r) && r == 0);
+
+	assert(!l_safe_atox32("a34", &r) && r == 0xa34);
+	assert(!l_safe_atox32("0xa34", &r) && r == 0xa34);
+	assert(l_safe_atou32("a34", NULL) == -EINVAL);
+
+	sprintf(s, "%u", UINT_MAX);
+	assert(!l_safe_atou32(s, &r) && r == UINT_MAX);
+
+	sprintf(s, "%x", UINT_MAX);
+	assert(!l_safe_atox32(s, &r) && r == UINT_MAX);
+
+	assert(l_safe_atou32("", NULL) == -EINVAL);
+	assert(l_safe_atox32("", NULL) == -EINVAL);
+
+	sprintf(s, "%llu", ULLONG_MAX);
+	assert(l_safe_atou32(s, NULL) == -ERANGE);
+
+	sprintf(s, "%llx", ULLONG_MAX);
+	assert(l_safe_atox32(s, NULL) == -ERANGE);
+
+	assert(l_safe_atou32("    3", NULL) == -EINVAL);
+	assert(l_safe_atou32("+3434", NULL) == -EINVAL);
+	assert(l_safe_atou32("-3434", NULL) == -EINVAL);
+	assert(l_safe_atou32("00000", &r) == -EINVAL);
+	assert(!l_safe_atox32("0002", &r) && r == 0x2);
+	assert(!l_safe_atox32("0x02", &r) && r == 0x2);
+
+	assert(l_safe_atox32("+0x3434", NULL) == -EINVAL);
+	assert(l_safe_atox32("-0x3434", NULL) == -EINVAL);
+
+	assert(!l_safe_atox16("0xffff", &h) && h == 0xffff);
+	assert(!l_safe_atox8("0xff", &c) && c == 0xff);
+	assert(l_safe_atox8("0xffff", &c) == -ERANGE);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -177,6 +224,8 @@ int main(int argc, char *argv[])
 	l_test_add("l_strlcpy", test_strlcpy, NULL);
 
 	l_test_add("L_IN_SET", test_in_set, NULL);
+
+	l_test_add("l_safe_atoux", test_safe_atoux, NULL);
 
 	return l_test_run();
 }
