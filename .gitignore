@@ -62,6 +62,7 @@ unit/test-ecdh
 unit/test-time
 unit/test-path
 unit/test-net
+unit/test-sysctl
 unit/cert-*.pem
 unit/cert-*.csr
 unit/cert-*.srl
