@@ -58,6 +58,7 @@
 #include "net-private.h"
 #include "acd.h"
 #include "timeout.h"
+#include "sysctl.h"
 #include "netconfig.h"
 
 struct l_netconfig {
@@ -89,8 +90,8 @@ struct l_netconfig {
 	unsigned int ifaddr6_dump_cmd_id;
 	struct l_queue *icmp_route_data;
 	struct l_acd *acd;
-	unsigned int orig_disable_ipv6;
-	long orig_optimistic_dad;
+	uint32_t orig_disable_ipv6;
+	uint32_t orig_optimistic_dad;
 	uint8_t mac[ETH_ALEN];
 	struct l_timeout *ra_timeout;
 	bool have_lla;
@@ -1325,59 +1326,25 @@ static int netconfig_proc_write_ipv6_uint_setting(struct l_netconfig *nc,
 							unsigned int value)
 {
 	char ifname[IF_NAMESIZE];
-	_auto_(l_free) char *filename = NULL;
-	_auto_(close) int fd = -1;
-	int r;
-	char valuestr[20];
 
 	if (unlikely(!if_indextoname(nc->ifindex, ifname)))
 		return -errno;
 
-	filename = l_strdup_printf("/proc/sys/net/ipv6/conf/%s/%s",
+	return l_sysctl_set_u32(value, "/proc/sys/net/ipv6/conf/%s/%s",
 					ifname, setting);
-
-	fd = L_TFR(open(filename, O_WRONLY));
-	if (unlikely(fd < 0))
-		return -errno;
-
-	snprintf(valuestr, sizeof(valuestr), "%u", value);
-	r = L_TFR(write(fd, valuestr, strlen(valuestr)));
-	return r > 0 ? 0 : -errno;
 }
 
-static long netconfig_proc_read_ipv6_uint_setting(struct l_netconfig *nc,
-							const char *setting)
+static int netconfig_proc_read_ipv6_uint_setting(struct l_netconfig *nc,
+							const char *setting,
+							uint32_t *out_v)
 {
 	char ifname[IF_NAMESIZE];
-	_auto_(l_free) char *filename = NULL;
-	_auto_(close) int fd = -1;
-	int r;
-	char valuestr[20];
-	long value;
-	char *endp;
 
 	if (unlikely(!if_indextoname(nc->ifindex, ifname)))
 		return -errno;
 
-	filename = l_strdup_printf("/proc/sys/net/ipv6/conf/%s/%s",
+	return l_sysctl_get_u32(out_v, "/proc/sys/net/ipv6/conf/%s/%s",
 					ifname, setting);
-
-	fd = L_TFR(open(filename, O_RDONLY));
-	if (unlikely(fd < 0))
-		return -errno;
-
-	r = L_TFR(read(fd, valuestr, sizeof(valuestr) - 1));
-	if (unlikely(r < 1))
-		return r == 0 ? -EINVAL : -errno;
-
-	valuestr[r - 1] = '\0';
-	errno = 0;
-	value = strtoul(valuestr, &endp, 10);
-
-	if (unlikely(errno || !L_IN_SET(*endp, '\n', '\0')))
-		return -EINVAL;
-
-	return value;
 }
 
 LIB_EXPORT struct l_netconfig *l_netconfig_new(uint32_t ifindex)
@@ -1972,6 +1939,7 @@ static void netconfig_ifaddr_ipv6_dump_cb(int error, uint16_t type,
 static void netconfig_ifaddr_ipv6_dump_done_cb(void *user_data)
 {
 	struct l_netconfig *nc = user_data;
+	int r;
 
 	/*
 	 * Handle the case of no link-local address having been found during
@@ -1993,14 +1961,18 @@ static void netconfig_ifaddr_ipv6_dump_done_cb(void *user_data)
 	netconfig_proc_write_ipv6_uint_setting(nc, "addr_gen_mode", 0);
 
 	/* "enable IPv6 operation" */
-	nc->orig_disable_ipv6 =
-		netconfig_proc_read_ipv6_uint_setting(nc, "disable_ipv6");
+	r = netconfig_proc_read_ipv6_uint_setting(nc, "disable_ipv6",
+						&nc->orig_disable_ipv6);
+	if (r < 0) /* TODO: Log error? */
+		nc->orig_disable_ipv6 = 0;
+
 	if (nc->orig_disable_ipv6)
 		netconfig_proc_write_ipv6_uint_setting(nc, "disable_ipv6", 0);
 }
 
 LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 {
+	int r;
 	bool optimistic_dad;
 
 	if (unlikely(!netconfig || netconfig->started))
@@ -2043,12 +2015,13 @@ configure_ipv6:
 	 */
 	optimistic_dad = netconfig->optimistic_dad_enabled &&
 		!netconfig->v6_static_addr;
-	netconfig->orig_optimistic_dad =
-		netconfig_proc_read_ipv6_uint_setting(netconfig,
-							"optimistic_dad");
 
-	if (netconfig->orig_optimistic_dad >= 0 &&
-			!!netconfig->orig_optimistic_dad != optimistic_dad)
+	r = netconfig_proc_read_ipv6_uint_setting(netconfig, "optimistic_dad",
+				&netconfig->orig_optimistic_dad);
+	if (r < 0) /* TODO: Log error? */
+		netconfig->orig_optimistic_dad = optimistic_dad;
+
+	if (!r && !!netconfig->orig_optimistic_dad != optimistic_dad)
 		netconfig_proc_write_ipv6_uint_setting(netconfig,
 							"optimistic_dad",
 							optimistic_dad ? 1 : 0);
@@ -2198,8 +2171,7 @@ LIB_EXPORT void l_netconfig_stop(struct l_netconfig *netconfig)
 
 	optimistic_dad = netconfig->optimistic_dad_enabled &&
 		!netconfig->v6_static_addr;
-	if (netconfig->orig_optimistic_dad >= 0 &&
-			!!netconfig->orig_optimistic_dad != optimistic_dad)
+	if (!!netconfig->orig_optimistic_dad != optimistic_dad)
 		netconfig_proc_write_ipv6_uint_setting(netconfig,
 						"optimistic_dad",
 						netconfig->orig_optimistic_dad);
