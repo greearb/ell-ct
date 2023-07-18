@@ -941,26 +941,11 @@ static void test_tls_suite_test(const void *data)
 	test_tls_with_ver(&test, 0, 0);
 }
 
-static int read_int_from_file(const char *path)
-{
-	int ret;
-	FILE *file;
-
-	file = fopen(path, "r");
-	if (!file)
-		return 0;
-
-	if (fscanf(file, "%i", &ret) < 1)
-		ret = 0;
-
-	fclose(file);
-	return ret;
-}
-
 int main(int argc, char *argv[])
 {
 	unsigned int i;
-	int maxkeys;
+	uint32_t maxkeys;
+	int r;
 
 	l_test_init(&argc, &argv);
 
@@ -1008,10 +993,9 @@ int main(int argc, char *argv[])
 		goto done;
 	}
 
-	maxkeys = read_int_from_file(getuid() > 0 ?
-					"/proc/sys/kernel/keys/maxkeys" :
-					"/proc/sys/kernel/keys/root_maxkeys");
-	if (maxkeys && maxkeys < 2000)
+	r = l_sysctl_get_u32(&maxkeys, "/proc/sys/kernel/keys/%s",
+				getuid() > 0 ? "maxkeys" : "root_maxkeys");
+	if (!r && maxkeys < 2000)
 		printf("Running sysctl kernel.keys.%s=2000 is recommended\n",
 			getuid() > 0 ? "maxkeys" : "root_maxkeys");
 
