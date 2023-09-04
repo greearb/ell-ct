@@ -28,6 +28,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <ell/ell.h>
 
@@ -70,9 +71,18 @@ static void test_sysctl_get_set(const void *data)
 
 int main(int argc, char *argv[])
 {
+	int ret;
 	l_test_init(&argc, &argv);
 
-	l_test_add("sysctl/get_set", test_sysctl_get_set, NULL);
+	/*
+	* test is failing if /proc/sys/net/core/somaxconn does not exist
+	* this can happen when either net is not compiled, or running in
+	* a namespace where sysfs is not mounted
+	*/
+	ret = access("/proc/sys/net/core/somaxconn", F_OK);
+	if (!ret)
+		l_test_add("sysctl/get_set", test_sysctl_get_set, NULL);
+
 
 	return l_test_run();
 }
