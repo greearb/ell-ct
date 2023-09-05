@@ -25,6 +25,10 @@ global:
 	l_util_get_debugfs_path;
 	l_memeq;
 	l_secure_memeq;
+	l_safe_atox8;
+	l_safe_atox16;
+	l_safe_atox32;
+	l_safe_atou32;
 	/* test */
 	l_test_init;
 	l_test_run;
