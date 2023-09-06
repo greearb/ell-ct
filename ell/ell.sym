@@ -775,6 +775,9 @@ global:
 	l_netconfig_get_routes;
 	l_netconfig_get_dns_list;
 	l_netconfig_get_domain_names;
+	/* sysctl */
+	l_sysctl_get_u32;
+	l_sysctl_set_u32;
 local:
 	*;
 };
