@@ -23,15 +23,15 @@
 #ifndef __ELL_KEY_H
 #define __ELL_KEY_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stddef.h>
 #include <stdbool.h>
 
 #include <ell/cleanup.h>
 #include <ell/checksum.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct l_key;
 struct l_keyring;
