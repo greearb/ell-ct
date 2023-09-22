@@ -23,12 +23,12 @@
 #ifndef __ELL_CERT_H
 #define __ELL_CERT_H
 
+#include <stddef.h>
+#include <ell/cleanup.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stddef.h>
-#include <ell/cleanup.h>
 
 struct l_queue;
 struct l_cert;
