@@ -23,11 +23,11 @@
 #ifndef __ELL_ICMP6_H
 #define __ELL_ICMP6_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdbool.h>
 
 struct l_icmp6_client;
 struct l_icmp6_router;
