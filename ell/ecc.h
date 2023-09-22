@@ -23,12 +23,12 @@
 #ifndef __ELL_ECC_H
 #define __ELL_ECC_H
 
+#include <sys/types.h>
+#include <ell/cleanup.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <sys/types.h> // for ssize_t
-#include <ell/cleanup.h>
 
 #define L_ECC_MAX_DIGITS 6
 #define L_ECC_SCALAR_MAX_BYTES		L_ECC_MAX_DIGITS * 8
