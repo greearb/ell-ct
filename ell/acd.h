@@ -23,11 +23,11 @@
 #ifndef __ELL_ACD_H
 #define __ELL_ACD_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdbool.h>
 
 struct l_acd;
 
