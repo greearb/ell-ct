@@ -21,13 +21,14 @@
  *
  */
 
-#pragma once
+#ifndef __ELL_SYSCTL_H
+#define __ELL_SYSCTL_H
+
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdint.h>
 
 int l_sysctl_get_u32(uint32_t *out_v, const char *format, ...)
 			__attribute__((format(printf, 2, 3)));
@@ -37,3 +38,5 @@ int l_sysctl_set_u32(uint32_t v, const char *format, ...)
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* __ELL_SYSCTL_H */
