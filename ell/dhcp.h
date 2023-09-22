@@ -23,11 +23,11 @@
 #ifndef __ELL_DHCP_H
 #define __ELL_DHCP_H
 
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdbool.h>
 
 struct l_dhcp_client;
 struct l_dhcp_lease;
