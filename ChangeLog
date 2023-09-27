@@ -1,3 +1,6 @@
+ver 0.59:
+	Fix issue with symbol visibility.
+
 ver 0.58:
 	Add support for handling sysctl settings.
 
