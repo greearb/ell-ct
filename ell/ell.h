@@ -52,3 +52,4 @@
 #include <ell/tester.h>
 #include <ell/netconfig.h>
 #include <ell/sysctl.h>
+#include <ell/minheap.h>
