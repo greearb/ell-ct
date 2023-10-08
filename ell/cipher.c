@@ -731,8 +731,6 @@ LIB_EXPORT bool l_aead_cipher_is_supported(enum l_aead_cipher_type type)
 
 /* ARC4 implementation copyright (c) 2001 Niels Möller */
 
-#define SWAP(a, b) do { uint8_t _t = a; a = b; b = _t; } while (0)
-
 static void arc4_set_key(uint8_t *S, const uint8_t *key, size_t key_length)
 {
 	unsigned int i;

@@ -15,6 +15,9 @@
 #define likely(x)   __builtin_expect(!!(x), 1)
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
+#define SWAP(l, r) \
+	do { typeof(l) __tmp = (l); (l) = (r); (r) = __tmp; } while (0)
+
 static inline size_t minsize(size_t a, size_t b)
 {
 	if (a <= b)
