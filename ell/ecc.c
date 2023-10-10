@@ -547,8 +547,24 @@ LIB_EXPORT struct l_ecc_point *l_ecc_point_from_data(
 		if (!_ecc_compute_y(curve, p->y, p->x))
 			goto failed;
 
+		/*
+		 * This is determining whether or not to subtract the Y
+		 * coordinate from P. According to ANSI X9.62 an even Y should
+		 * be prefixed with 02 (BIT0) and an odd Y should be prefixed
+		 * with 03 (BIT1). If this is not the case, subtract Y from P.
+		 *
+		 * ANSI X9.62
+		 * 4.3.6 Point-to-Octet-String Conversion
+		 *
+		 * 2. If the compressed form is used, then do the following:
+		 *     2.1. Compute the bit ~Yp . (See Section 4.2.)
+		 *     2.2. Assign the value 02 to the single octet PC if ~Yp
+		 *          is 0, or the value 03 if ~Yp is 1.
+		 *     2.3. The result is the octet string PO = PC || X
+		 */
+
 		sub = secure_select(type == L_ECC_POINT_TYPE_COMPRESSED_BIT0,
-					!(p->y[0] & 1), p->y[0] & 1);
+					p->y[0] & 1, !(p->y[0] & 1));
 
 		_vli_mod_sub(tmp, curve->p, p->y, curve->p, curve->ndigits);
 
