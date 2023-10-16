@@ -240,7 +240,8 @@ static void family_ops(struct l_genl_family_info *info,
 		struct l_genl_attr attr_op;
 		uint32_t id = 0, flags = 0;
 
-		l_genl_attr_recurse(attr, &attr_op);
+		if (!l_genl_attr_recurse(attr, &attr_op))
+			continue;
 
 		while (l_genl_attr_next(&attr_op, &type, &len, &data)) {
 			switch (type) {
@@ -269,7 +270,8 @@ static void family_mcast_groups(struct l_genl_family_info *info,
 		const char *name = NULL;
 		uint32_t id = 0;
 
-		l_genl_attr_recurse(attr, &attr_grp);
+		if (!l_genl_attr_recurse(attr, &attr_grp))
+			continue;
 
 		while (l_genl_attr_next(&attr_grp, &type, &len, &data)) {
 			switch (type) {
