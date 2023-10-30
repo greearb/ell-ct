@@ -252,6 +252,26 @@ static inline void auto_free(void *a)
 		__p;				\
 	}))
 
+/**
+ * l_newa:
+ * @type: type of structure
+ * @count: amount of structures
+ *
+ * Allocates stack space for @count structures of @type.  Memory is allocated
+ * using alloca and initialized to 0.
+ *
+ * Returns: Pointer to memory allocated on the stack.
+ */
+#define l_newa(type, count)			\
+	(type *) (__extension__ ({		\
+		size_t __n = (size_t) (count);	\
+		size_t __s = sizeof(type);	\
+		void *__p;			\
+		__p = alloca(__n * __s);	\
+		memset(__p, 0, __n * __s);	\
+		__p;				\
+	}))
+
 char *l_strdup(const char *str);
 char *l_strndup(const char *str, size_t max);
 char *l_strdup_printf(const char *format, ...)
