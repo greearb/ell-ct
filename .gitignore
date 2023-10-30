@@ -63,6 +63,7 @@ unit/test-time
 unit/test-path
 unit/test-net
 unit/test-sysctl
+unit/test-minheap
 unit/cert-*.pem
 unit/cert-*.csr
 unit/cert-*.srl
