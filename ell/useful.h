@@ -18,6 +18,10 @@
 #define SWAP(l, r) \
 	do { typeof(l) __tmp = (l); (l) = (r); (r) = __tmp; } while (0)
 
+#ifndef __always_inline
+#define __always_inline inline __attribute__((always_inline))
+#endif
+
 static inline size_t minsize(size_t a, size_t b)
 {
 	if (a <= b)
