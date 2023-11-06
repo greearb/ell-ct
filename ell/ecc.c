@@ -940,6 +940,18 @@ LIB_EXPORT bool l_ecc_point_multiply(struct l_ecc_point *ret,
 	return true;
 }
 
+LIB_EXPORT bool l_ecc_point_multiply_g(struct l_ecc_point *ret,
+					const struct l_ecc_scalar *scalar)
+{
+	if (unlikely(!ret || !scalar))
+		return false;
+
+	_ecc_point_mult(ret, &scalar->curve->g, scalar->c, NULL,
+						scalar->curve->p);
+
+	return true;
+}
+
 LIB_EXPORT bool l_ecc_point_add(struct l_ecc_point *ret,
 					const struct l_ecc_point *a,
 					const struct l_ecc_point *b)

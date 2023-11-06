@@ -593,6 +593,7 @@ global:
 	l_ecc_point_get_data;
 	l_ecc_point_inverse;
 	l_ecc_point_multiply;
+	l_ecc_point_multiply_g;
 	l_ecc_point_new;
 	l_ecc_point_from_sswu;
 	l_ecc_point_clone;

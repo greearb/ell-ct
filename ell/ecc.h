@@ -83,6 +83,8 @@ bool l_ecc_scalar_add(struct l_ecc_scalar *ret, const struct l_ecc_scalar *a,
 bool l_ecc_point_multiply(struct l_ecc_point *ret,
 				const struct l_ecc_scalar *scalar,
 				const struct l_ecc_point *point);
+bool l_ecc_point_multiply_g(struct l_ecc_point *ret,
+				const struct l_ecc_scalar *scalar);
 bool l_ecc_point_add(struct l_ecc_point *ret, const struct l_ecc_point *a,
 				const struct l_ecc_point *b);
 bool l_ecc_point_inverse(struct l_ecc_point *p);
