@@ -12,6 +12,7 @@
 #define _GNU_SOURCE
 #include <stdio.h>
 #include <signal.h>
+#include <sys/socket.h>
 #include <linux/if_arp.h>
 #include <arpa/inet.h>
 
