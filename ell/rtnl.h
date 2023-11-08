@@ -9,13 +9,14 @@
 #define __ELL_RTNL_H
 
 #include <stdint.h>
-#include <linux/rtnetlink.h>
 #include <ell/cleanup.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct rtmsg;
+struct ifaddrmsg;
 struct l_rtnl_address;
 struct l_rtnl_route;
 

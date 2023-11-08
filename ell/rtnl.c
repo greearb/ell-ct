@@ -10,12 +10,15 @@
 #endif
 
 #define _GNU_SOURCE
+#include <asm/types.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#include <sys/socket.h>
 #include <linux/if.h>
 #include <linux/icmpv6.h>
 #include <linux/neighbour.h>
 #include <linux/if_ether.h>
 #include <net/if_arp.h>
-#include <sys/socket.h>
 #include <arpa/inet.h>
 #include <errno.h>
 

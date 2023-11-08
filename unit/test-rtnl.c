@@ -16,6 +16,10 @@
 #include <stdlib.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <asm/types.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#include <sys/socket.h>
 
 #include <ell/ell.h>
 #include "ell/dbus-private.h"

@@ -9,6 +9,10 @@
 #include <config.h>
 #endif
 
+#include <asm/types.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+#include <sys/socket.h>
 #include <net/if.h>
 #include <linux/types.h>
 #include <linux/if_ether.h>
