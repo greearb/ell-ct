@@ -550,7 +550,7 @@ static void vli_mmod_fast_384(uint64_t *result, const uint64_t *product,
 /* Computes result = product % curve_prime
  *  from http://www.nsa.gov/ia/_files/nist-routines.pdf
 */
-bool _vli_mmod_fast(uint64_t *result, uint64_t *product,
+bool _vli_mmod_fast(uint64_t *result, const uint64_t *product,
 			const uint64_t *curve_prime, unsigned int ndigits)
 {
 	uint64_t tmp[2 * L_ECC_MAX_DIGITS];
