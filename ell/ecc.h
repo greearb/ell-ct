@@ -66,6 +66,8 @@ struct l_ecc_scalar *l_ecc_scalar_new_random(
 					const struct l_ecc_curve *curve);
 struct l_ecc_scalar *l_ecc_scalar_new_modp(const struct l_ecc_curve *curve,
 						const void *buf, size_t len);
+struct l_ecc_scalar *l_ecc_scalar_new_modn(const struct l_ecc_curve *curve,
+						const void *buf, size_t len);
 struct l_ecc_scalar *l_ecc_scalar_new_reduced_1_to_n(
 					const struct l_ecc_curve *curve,
 					const void *buf, size_t len);
