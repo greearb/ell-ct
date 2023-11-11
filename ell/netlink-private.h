@@ -20,6 +20,15 @@
 #define NLA_DATA(nla)		((void*)(((char*)(nla)) + NLA_LENGTH(0)))
 #define NLA_PAYLOAD(nla)	((int)((nla)->nla_len) - NLA_LENGTH(0))
 
+#ifndef NETLINK_EXT_ACK
+#define NETLINK_EXT_ACK 11
+enum nlmsgerr_attrs {
+	NLMSGERR_ATTR_UNUSED,
+	NLMSGERR_ATTR_MSG,
+	NLMSGERR_ATTR_OFFS,
+};
+#endif
+
 bool netlink_parse_ext_ack_error(const struct nlmsghdr *nlmsg,
 					const char **out_error_msg,
 					uint32_t *out_error_offset);
