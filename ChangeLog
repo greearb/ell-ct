@@ -1,3 +1,8 @@
+ver 0.60:
+	Fix issue with missing NETLINK_EXT_ACK definition.
+	Fix issue with incorrect derivation of ECC compressed points.
+	Add support for ECC usage from SPAKE2+ key exchange protocol.
+
 ver 0.59:
 	Fix issue with symbol visibility.
 
