@@ -27,6 +27,8 @@ enum nlmsgerr_attrs {
 	NLMSGERR_ATTR_MSG,
 	NLMSGERR_ATTR_OFFS,
 };
+#define NLM_F_CAPPED   0x100
+#define NLM_F_ACK_TLVS 0x200
 #endif
 
 bool netlink_parse_ext_ack_error(const struct nlmsghdr *nlmsg,
