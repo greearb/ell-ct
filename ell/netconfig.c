@@ -1970,6 +1970,9 @@ LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 	if (!netconfig_check_config(netconfig))
 		return false;
 
+	if (!l_net_get_mac_address(netconfig->ifindex, netconfig->mac))
+		return false;
+
 	if (!netconfig->v4_enabled)
 		goto configure_ipv6;
 
@@ -1983,6 +1986,9 @@ LIB_EXPORT bool l_netconfig_start(struct l_netconfig *netconfig)
 						netconfig, NULL);
 		goto configure_ipv6;
 	}
+
+	l_dhcp_client_set_address(netconfig->dhcp_client, ARPHRD_ETHER,
+					netconfig->mac, ETH_ALEN);
 
 	if (!l_dhcp_client_start(netconfig->dhcp_client))
 		return false;
@@ -2063,9 +2069,6 @@ configure_ipv6:
 
 	l_queue_push_tail(addr_wait_list, netconfig);
 	netconfig->have_lla = false;
-
-	if (!l_net_get_mac_address(netconfig->ifindex, netconfig->mac))
-		goto unregister;
 
 	l_dhcp6_client_set_address(netconfig->dhcp6_client, ARPHRD_ETHER,
 					netconfig->mac, ETH_ALEN);
