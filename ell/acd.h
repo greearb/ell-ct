@@ -40,7 +40,7 @@ bool l_acd_set_event_handler(struct l_acd *acd, l_acd_event_func_t cb,
 bool l_acd_stop(struct l_acd *acd);
 void l_acd_destroy(struct l_acd *acd);
 bool l_acd_set_debug(struct l_acd *acd, l_acd_debug_cb_t function,
-			void *user_data, l_acd_destroy_func_t destory);
+			void *user_data, l_acd_destroy_func_t destroy);
 bool l_acd_set_skip_probes(struct l_acd *acd, bool skip);
 bool l_acd_set_defend_policy(struct l_acd *acd,
 				enum l_acd_defend_policy policy);

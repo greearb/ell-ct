@@ -518,14 +518,14 @@ LIB_EXPORT void l_acd_destroy(struct l_acd *acd)
 
 LIB_EXPORT bool l_acd_set_debug(struct l_acd *acd,
 				l_acd_debug_cb_t function,
-				void *user_data, l_acd_destroy_func_t destory)
+				void *user_data, l_acd_destroy_func_t destroy)
 {
 	if (unlikely(!acd))
 		return false;
 
 	acd->debug_handler = function;
 	acd->debug_data = user_data;
-	acd->debug_destroy = destory;
+	acd->debug_destroy = destroy;
 
 	return true;
 }
