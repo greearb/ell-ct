@@ -8,11 +8,11 @@
 #ifndef __ELL_TIMEOUT_H
 #define __ELL_TIMEOUT_H
 
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdint.h>
 
 struct l_timeout;
 
