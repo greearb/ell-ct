@@ -59,7 +59,7 @@ LIB_EXPORT struct l_queue *l_queue_new(void)
  * @queue: queue object
  * @destroy: destroy function
  *
- * Free queue and call @destory on all remaining entries.
+ * Free queue and call @destroy on all remaining entries.
  **/
 LIB_EXPORT void l_queue_destroy(struct l_queue *queue,
 				l_queue_destroy_func_t destroy)
@@ -73,7 +73,7 @@ LIB_EXPORT void l_queue_destroy(struct l_queue *queue,
  * @queue: queue object
  * @destroy: destroy function
  *
- * Clear queue and call @destory on all remaining entries.
+ * Clear queue and call @destroy on all remaining entries.
  **/
 LIB_EXPORT void l_queue_clear(struct l_queue *queue,
 				l_queue_destroy_func_t destroy)
