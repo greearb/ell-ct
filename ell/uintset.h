@@ -8,14 +8,14 @@
 #ifndef __ELL_UINTSET_H
 #define __ELL_UINTSET_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <ell/cleanup.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 typedef void (*l_uintset_foreach_func_t) (uint32_t number, void *user_data);
 
