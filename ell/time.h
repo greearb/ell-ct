@@ -8,12 +8,12 @@
 #ifndef __ELL_TIME_H
 #define __ELL_TIME_H
 
+#include <stdint.h>
+#include <stdbool.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdint.h>
-#include <stdbool.h>
 
 #define L_USEC_PER_SEC 1000000ULL
 #define L_MSEC_PER_SEC 1000ULL
