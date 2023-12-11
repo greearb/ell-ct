@@ -119,7 +119,7 @@ bool l_dhcp_server_set_ip_range(struct l_dhcp_server *server,
 				const char *end_ip);
 bool l_dhcp_server_set_debug(struct l_dhcp_server *server,
 				l_dhcp_debug_cb_t function,
-				void *user_data, l_dhcp_destroy_cb_t destory);
+				void *user_data, l_dhcp_destroy_cb_t destroy);
 bool l_dhcp_server_set_event_handler(struct l_dhcp_server *server,
 					l_dhcp_server_event_cb_t handler,
 					void *user_data,
