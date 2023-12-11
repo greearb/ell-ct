@@ -296,7 +296,7 @@ LIB_EXPORT bool l_hashmap_set_key_free_function(struct l_hashmap *hashmap,
  * @hashmap: hash table object
  * @destroy: destroy function
  *
- * Free hash table and call @destory on all remaining entries.
+ * Free hash table and call @destroy on all remaining entries.
  *
  * NOTE: While the destroy is in progress, the hashmap is assumed to be
  * invariant.  The behavior of adding or removing entries while a destroy
