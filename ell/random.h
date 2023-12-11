@@ -8,13 +8,13 @@
 #ifndef __ELL_RANDOM_H
 #define __ELL_RANDOM_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 bool l_getrandom(void *buf, size_t len);
 bool l_getrandom_is_supported(void);
