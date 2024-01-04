@@ -127,7 +127,7 @@ LIB_EXPORT void l_free(void *ptr)
  * l_strdup:
  * @str: string pointer
  *
- * Allocates and duplicates sring
+ * Allocates and duplicates string
  *
  * Returns: a newly allocated string
  **/
@@ -153,7 +153,7 @@ LIB_EXPORT char *l_strdup(const char *str)
  * @str: string pointer
  * @max: Maximum number of characters to copy
  *
- * Allocates and duplicates sring.  If the string is longer than @max
+ * Allocates and duplicates string.  If the string is longer than @max
  * characters, only @max are copied and a null terminating character
  * is added.
  *
