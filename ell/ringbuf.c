@@ -29,7 +29,7 @@
 /**
  * l_ringbuf:
  *
- * Opague object representing the Ring Buffer.
+ * Opaque object representing the Ring Buffer.
  */
 struct l_ringbuf {
 	void *buffer;
@@ -42,7 +42,7 @@ struct l_ringbuf {
 
 #define RINGBUF_RESET 0
 
-/* Find last (most siginificant) set bit */
+/* Find last (most significant) set bit */
 static inline unsigned int fls(unsigned int x)
 {
 	return x ? sizeof(x) * 8 - __builtin_clz(x) : 0;
