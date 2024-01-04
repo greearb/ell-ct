@@ -808,7 +808,7 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new(
 
 /*
  * Build a scalar = value modulo p where p is the prime number for a given
- * curve.  bytes can contain a numer with up to 2x number of digits as the
+ * curve.  bytes can contain a number with up to 2x number of digits as the
  * curve.  This is used in Hash to Curve calculations.
  */
 LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new_modp(
