@@ -28,7 +28,7 @@
 /**
  * l_idle:
  *
- * Opague object representing the idle time event.
+ * Opaque object representing the idle time event.
  */
 struct l_idle {
 	union {
