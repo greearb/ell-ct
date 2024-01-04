@@ -23,7 +23,7 @@
 /**
  * l_queue:
  *
- * Opague object representing the queue.
+ * Opaque object representing the queue.
  */
 struct l_queue {
 	struct l_queue_entry *head;
