@@ -29,7 +29,7 @@
 /**
  * l_io:
  *
- * Opague object representing the IO.
+ * Opaque object representing the IO.
  */
 struct l_io {
 	int fd;
