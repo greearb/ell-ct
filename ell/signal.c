@@ -33,7 +33,7 @@
 /**
  * l_signal:
  *
- * Opague object representing the signal.
+ * Opaque object representing the signal.
  */
 struct l_signal {
 	struct signal_desc *desc;
