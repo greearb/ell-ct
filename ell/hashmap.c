@@ -32,7 +32,7 @@ struct entry {
 /**
  * l_hashmap:
  *
- * Opague object representing the hash table.
+ * Opaque object representing the hash table.
  */
 struct l_hashmap {
 	l_hashmap_hash_func_t hash_func;
