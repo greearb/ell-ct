@@ -190,7 +190,7 @@ LIB_EXPORT char *l_strjoinv(char **str_array, const char delim)
 /**
  * l_strv_new:
  *
- * Returns: new emptry string array
+ * Returns: new empty string array
  **/
 LIB_EXPORT char **l_strv_new(void)
 {
