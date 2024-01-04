@@ -34,7 +34,7 @@
 /**
  * l_timeout:
  *
- * Opague object representing the timeout.
+ * Opaque object representing the timeout.
  */
 struct l_timeout {
 	int fd;
