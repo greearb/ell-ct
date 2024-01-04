@@ -26,7 +26,7 @@
 /**
  * l_string:
  *
- * Opague object representing the string buffer.
+ * Opaque object representing the string buffer.
  */
 struct l_string {
 	size_t max;
