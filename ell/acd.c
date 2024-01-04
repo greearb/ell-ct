@@ -326,7 +326,7 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 		/*
 		 * We still have an initial announcement to send, but rather
 		 * than wait for that (potentially 2 seconds) we can remove
-		 * the timeout, send annouce now, and still transition to the
+		 * the timeout, send announce now, and still transition to the
 		 * defending state.
 		 */
 		if (acd->timeout)
