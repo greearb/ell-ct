@@ -1602,7 +1602,7 @@ LIB_EXPORT bool l_dhcp6_client_set_address(struct l_dhcp6_client *client,
 
 /*
  * Set the link local address to use instead of binding to the in6addr_any
- * address by default.  This allows multiple clients to coexist simulatenously
+ * address by default.  This allows multiple clients to coexist simultaneously
  * on different ifindexes
  */
 LIB_EXPORT bool l_dhcp6_client_set_link_local_address(
