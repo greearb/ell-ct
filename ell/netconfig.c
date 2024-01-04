@@ -1933,10 +1933,10 @@ static void netconfig_ifaddr_ipv6_dump_done_cb(void *user_data)
 	/*
 	 * Handle the case of no link-local address having been found during
 	 * the dump.  If nc->ifaddr6_dump_cmd_id is 0, we have found one or
-	 * the dump is being cancelled.  Otherwise try disabing the
+	 * the dump is being cancelled.  Otherwise try disabling the
 	 * "disable_ipv6" setting for the interface since it may have been
 	 * enabled.  Also write "addr_gen_mode" which triggers regerating
-	 * the link-local addresss on the interface in the kernel if it
+	 * the link-local address on the interface in the kernel if it
 	 * was previously removed.
 	 */
 	if (!nc->ifaddr6_dump_cmd_id || !nc->started)
