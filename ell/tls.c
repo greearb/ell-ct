@@ -1311,7 +1311,7 @@ static ssize_t tls_append_hello_extensions(struct l_tls *tls,
 		 * Note: could handle NULL client_write with non-NULL
 		 * server_handle or server_handle_absent as "server-oriented"
 		 * extension (7.4.1.4) and write empty extension_data and
-		 * simliarly require empty extension_data in
+		 * similarly require empty extension_data in
 		 * tls_handle_client_hello if client_handle NULL.
 		 */
 		if (!ext_write)
@@ -3299,7 +3299,7 @@ static void tls_handle_handshake(struct l_tls *tls, int type,
 		 *
 		 *    * (RSA key exchange algorithm case) the correct
 		 *      receival of this Finished message confirms the
-		 *      posession of the master secret, it is verified by
+		 *      possession of the master secret, it is verified by
 		 *      both the successful decryption and the MAC of this
 		 *      message (either should be enough) because we entered
 		 *      the TLS_HANDSHAKE_WAIT_FINISHED state only after

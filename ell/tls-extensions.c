@@ -955,7 +955,7 @@ static bool tls_renegotiation_info_absent(struct l_tls *tls)
 
 	/*
 	 * The normal policy otherwise is that the extension must be
-	 * present in renegotation if the previous Client or Server Hello
+	 * present in renegotiation if the previous Client or Server Hello
 	 * did include this extension, or the SCSV in the Client Hello case.
 	 */
 	return !tls->ready || !tls->renegotiation_info.secure_renegotiation;
