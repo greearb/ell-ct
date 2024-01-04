@@ -568,7 +568,7 @@ LIB_EXPORT bool l_main_exit(void)
 /**
  * l_main_quit:
  *
- * Teminate the running main loop
+ * Terminate the running main loop
  *
  * Returns: #true when terminating the main loop or #false in case of failure
  **/
