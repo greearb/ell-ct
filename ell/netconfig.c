@@ -549,6 +549,12 @@ static void netconfig_dhcp_event_handler(struct l_dhcp_client *client,
 			netconfig_failed(nc, AF_INET);
 
 		break;
+	case L_DHCP_CLIENT_EVENT_MAX_ATTEMPTS_REACHED:
+		L_WARN_ON(nc->v4_configured);
+
+		netconfig_failed(nc, AF_INET);
+
+		break;
 	}
 }
 

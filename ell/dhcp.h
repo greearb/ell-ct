@@ -41,6 +41,7 @@ enum l_dhcp_client_event {
 	L_DHCP_CLIENT_EVENT_LEASE_EXPIRED,
 	L_DHCP_CLIENT_EVENT_LEASE_RENEWED,
 	L_DHCP_CLIENT_EVENT_NO_LEASE,
+	L_DHCP_CLIENT_EVENT_MAX_ATTEMPTS_REACHED,
 };
 
 enum l_dhcp_server_event {
@@ -73,6 +74,8 @@ bool l_dhcp_client_set_hostname(struct l_dhcp_client *client,
 
 bool l_dhcp_client_set_rtnl(struct l_dhcp_client *client,
 					struct l_netlink *rtnl);
+bool l_dhcp_client_set_max_attempts(struct l_dhcp_client *client,
+					uint8_t attempts);
 
 const struct l_dhcp_lease *l_dhcp_client_get_lease(
 					const struct l_dhcp_client *client);

@@ -255,6 +255,7 @@ global:
 	l_dhcp_client_set_rtnl;
 	l_dhcp_client_set_hostname;
 	l_dhcp_client_get_lease;
+	l_dhcp_client_set_max_attempts;
 	l_dhcp_client_start;
 	l_dhcp_client_stop;
 	l_dhcp_client_set_event_handler;

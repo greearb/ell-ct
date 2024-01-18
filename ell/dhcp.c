@@ -45,6 +45,8 @@
 	client->state = (s)
 
 #define BITS_PER_LONG (sizeof(unsigned long) * 8)
+#define CLIENT_MAX_ATTEMPT_LIMIT 30
+#define CLIENT_MIN_ATTEMPT_LIMIT 3
 
 enum dhcp_state {
 	DHCP_STATE_INIT,
@@ -159,6 +161,7 @@ struct l_dhcp_client {
 	uint32_t rtnl_add_cmdid;
 	struct l_rtnl_address *rtnl_configured_address;
 	uint8_t attempt;
+	uint8_t max_attempts;
 	l_dhcp_client_event_cb_t event_handler;
 	void *event_data;
 	l_dhcp_destroy_cb_t event_destroy;
@@ -558,9 +561,16 @@ static void dhcp_client_timeout_resend(struct l_timeout *timeout,
 		 * "The retransmission delay SHOULD be doubled with subsequent
 		 * retransmissions up to a maximum of 64 seconds.
 		 */
-		client->attempt += 1;
-		next_timeout = minsize(2 << client->attempt, 64);
-		break;
+		if (client->attempt < client->max_attempts) {
+			next_timeout = minsize(2 << client->attempt++, 64);
+			break;
+		}
+
+		CLIENT_DEBUG("Max request/discover attempts reached");
+
+		dhcp_client_event_notify(client,
+				L_DHCP_CLIENT_EVENT_MAX_ATTEMPTS_REACHED);
+		return;
 	case DHCP_STATE_INIT:
 	case DHCP_STATE_INIT_REBOOT:
 	case DHCP_STATE_REBOOTING:
@@ -988,6 +998,7 @@ LIB_EXPORT struct l_dhcp_client *l_dhcp_client_new(uint32_t ifindex)
 
 	client->state = DHCP_STATE_INIT;
 	client->ifindex = ifindex;
+	client->max_attempts = CLIENT_MAX_ATTEMPT_LIMIT;
 
 	/* Enable these options by default */
 	dhcp_enable_option(client, L_DHCP_OPTION_SUBNET_MASK);
@@ -1307,5 +1318,23 @@ LIB_EXPORT bool l_dhcp_client_set_rtnl(struct l_dhcp_client *client,
 		return false;
 
 	client->rtnl = rtnl;
+	return true;
+}
+
+LIB_EXPORT bool l_dhcp_client_set_max_attempts(struct l_dhcp_client *client,
+						uint8_t attempts)
+{
+	if (unlikely(!client))
+		return false;
+
+	if (unlikely(client->state != DHCP_STATE_INIT))
+		return false;
+
+	if (attempts < CLIENT_MIN_ATTEMPT_LIMIT ||
+				attempts > CLIENT_MAX_ATTEMPT_LIMIT)
+		return false;
+
+	client->max_attempts = attempts;
+
 	return true;
 }
