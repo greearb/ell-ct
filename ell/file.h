@@ -13,6 +13,7 @@ extern "C" {
 #endif
 
 void *l_file_get_contents(const char *filename, size_t *out_len);
+int l_file_set_contents(const char *filename, const void *data, size_t len);
 
 #ifdef __cplusplus
 }

@@ -312,6 +312,7 @@ global:
 	l_dir_watch_destroy;
 	/* file */
 	l_file_get_contents;
+	l_file_set_contents;
 	/* genl */
 	l_genl_new;
 	l_genl_ref;
