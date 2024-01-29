@@ -33,6 +33,8 @@ struct l_dir_watch *l_dir_watch_new(const char *pathname,
 					l_dir_watch_destroy_func_t destroy);
 void l_dir_watch_destroy(struct l_dir_watch *watch);
 
+int l_dir_create(const char *abspath);
+
 #ifdef __cplusplus
 }
 #endif
