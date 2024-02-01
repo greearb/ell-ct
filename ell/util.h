@@ -14,6 +14,8 @@
 #include <inttypes.h>
 #include <endian.h>
 #include <byteswap.h>
+#include <unistd.h>
+#include <errno.h>
 #include <sys/uio.h>
 #include <ell/cleanup.h>
 
@@ -313,6 +315,15 @@ const char *l_util_get_debugfs_path(void);
        do __result = (long int) (expression);      \
        while (__result == -1L && errno == EINTR);  \
        __result; }))
+
+/* Enables declaring _auto_(close) int fd = <-1 or L_TFR(open(...))>; */
+inline __attribute__((always_inline)) void close_cleanup(void *p)
+{
+	int fd = *(int *) p;
+
+	if (fd >= 0)
+		L_TFR(close(fd));
+}
 
 #define _L_IN_SET_CMP(val, type, cmp, ...) __extension__ ({		\
 		const type __v = (val);					\
