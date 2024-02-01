@@ -59,11 +59,8 @@ static inline unsigned char bit_field(const unsigned char oct,
 	_x / _d;					\
 })
 
-#define __AUTODESTRUCT(func)				\
-	__attribute((cleanup(func ## _cleanup)))
-
 #define _auto_(func)					\
-	__AUTODESTRUCT(func)
+	__L_AUTODESTRUCT(func)
 
 /*
  * Trick the compiler into thinking that var might be changed somehow by

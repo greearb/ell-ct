@@ -317,7 +317,7 @@ const char *l_util_get_debugfs_path(void);
        __result; }))
 
 /* Enables declaring _auto_(close) int fd = <-1 or L_TFR(open(...))>; */
-inline __attribute__((always_inline)) void close_cleanup(void *p)
+inline __attribute__((always_inline)) void _l_close_cleanup(void *p)
 {
 	int fd = *(int *) p;
 

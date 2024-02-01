@@ -7,6 +7,9 @@
 
 #pragma once
 
+#define __L_AUTODESTRUCT(func)				\
+	__attribute((cleanup(_l_ ## func ## _cleanup)))
+
 #define DEFINE_CLEANUP_FUNC(func)			\
 	inline __attribute__((always_inline))		\
-	void func ## _cleanup(void *p) { func(*(void **) p); }
+	void _l_ ## func ## _cleanup(void *p) { func(*(void **) p); }
