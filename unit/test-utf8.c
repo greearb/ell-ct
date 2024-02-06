@@ -944,6 +944,40 @@ static void test_ascii_tolower(const void *data)
 	assert(l_ascii_tolower('9') == '9');
 }
 
+static void test_ascii_strup(const void *data)
+{
+	char *str;
+
+	str = l_ascii_strup("1234abcdefz.09\t\nSUV", -1);
+	assert(!strcmp(str, "1234ABCDEFZ.09\t\nSUV"));
+	l_free(str);
+
+	str = l_ascii_strup("aBCDEF", 10);
+	assert(!strcmp(str, "ABCDEF"));
+	l_free(str);
+
+	str = l_ascii_strup("1234abcdefz.09", 12);
+	assert(!strcmp(str, "1234ABCDEFZ."));
+	l_free(str);
+}
+
+static void test_ascii_strdown(const void *data)
+{
+	char *str;
+
+	str = l_ascii_strdown("1234ABCDEFZ.09\t\nSUV", -1);
+	assert(!strcmp(str, "1234abcdefz.09\t\nsuv"));
+	l_free(str);
+
+	str = l_ascii_strdown("aBCDEF", 10);
+	assert(!strcmp(str, "abcdef"));
+	l_free(str);
+
+	str = l_ascii_strdown("1234abCDEFZ.09", 12);
+	assert(!strcmp(str, "1234abcdefz."));
+	l_free(str);
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -1128,6 +1162,8 @@ int main(int argc, char *argv[])
 
 	l_test_add("ascii/toupper", test_ascii_toupper, NULL);
 	l_test_add("ascii/tolower", test_ascii_tolower, NULL);
+	l_test_add("ascii/strup", test_ascii_strup, NULL);
+	l_test_add("ascii/strdown", test_ascii_strdown, NULL);
 
 	return l_test_run();
 }
