@@ -1,3 +1,7 @@
+ver 0.62:
+	Add support for cleanup functions and macros.
+	Add support for setting DHCP max attempts.
+
 ver 0.61:
 	Fix issue with not setting DHCP MAC address on start.
 	Fix issue with missing NLM_F_ACK_TLVS and NLM_F_CAPPED.
