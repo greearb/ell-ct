@@ -1,6 +1,7 @@
 /*
  * Embedded Linux library
  * Copyright (C) 2011-2014  Intel Corporation
+ * Copyright (C) 2024  Cruise, LLC
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
@@ -84,6 +85,14 @@ static inline __attribute__ ((always_inline)) bool l_ascii_isascii(int c)
 		return true;
 
 	return false;
+}
+
+static inline __attribute__ ((always_inline)) char l_ascii_toupper(char c)
+{
+	if (!l_ascii_islower(c))
+		return c;
+
+	return c - 32;
 }
 
 bool l_utf8_validate(const char *src, size_t len, const char **end);
