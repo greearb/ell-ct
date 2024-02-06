@@ -49,6 +49,7 @@ global:
 	l_strv_eq;
 	/* utf8 */
 	l_ascii_table;
+	l_ascii_strdown;
 	l_utf8_get_codepoint;
 	l_utf8_validate;
 	l_utf8_strlen;

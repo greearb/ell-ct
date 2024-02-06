@@ -1,6 +1,7 @@
 /*
  * Embedded Linux library
  * Copyright (C) 2011-2014  Intel Corporation
+ * Copyright (C) 2024  Cruise, LLC
  *
  * SPDX-License-Identifier: LGPL-2.1-or-later
  */
@@ -41,6 +42,38 @@ LIB_EXPORT unsigned char l_ascii_table[256] = {
 	[0x7F]		= L_ASCII_CNTRL,
 	[0x80 ... 0xFF] = 0,
 };
+
+/**
+ * l_ascii_strdown
+ * @str: a pointer to an ASCII string
+ * @len: maximum bytes to process or negative if string is null terminated
+ *
+ * Returns: Newly allocated string with all upper case characters converted
+ * to lower case.
+ **/
+LIB_EXPORT char *l_ascii_strdown(const char *str, ssize_t len)
+{
+	size_t slen;
+	size_t i;
+	char *ret;
+
+	if (!str)
+		return NULL;
+
+	if (len < 0)
+		slen = strlen(str);
+	else
+		slen = minsize(strlen(str), (size_t) len);
+
+	ret = l_malloc(slen + 1);
+
+	for (i = 0; i < slen; i++)
+		ret[i] = l_ascii_tolower(str[i]);
+
+	ret[i] = '\0';
+
+	return ret;
+}
 
 static inline bool __attribute__ ((always_inline))
 			valid_unicode(wchar_t c)
