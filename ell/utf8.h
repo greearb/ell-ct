@@ -95,6 +95,14 @@ static inline __attribute__ ((always_inline)) char l_ascii_toupper(char c)
 	return c - 32;
 }
 
+static inline __attribute__ ((always_inline)) char l_ascii_tolower(char c)
+{
+	if (!l_ascii_isupper(c))
+		return c;
+
+	return c + 32;
+}
+
 bool l_utf8_validate(const char *src, size_t len, const char **end);
 size_t l_utf8_strlen(const char *str);
 
