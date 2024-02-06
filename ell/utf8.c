@@ -75,6 +75,38 @@ LIB_EXPORT char *l_ascii_strdown(const char *str, ssize_t len)
 	return ret;
 }
 
+/**
+ * l_ascii_strup
+ * @str: a pointer to an ASCII string
+ * @len: maximum bytes to process or negative if string is null terminated
+ *
+ * Returns: Newly allocated string with all lower case characters converted
+ * to upper case.
+ **/
+LIB_EXPORT char *l_ascii_strup(const char *str, ssize_t len)
+{
+	size_t slen;
+	size_t i;
+	char *ret;
+
+	if (!str)
+		return NULL;
+
+	if (len < 0)
+		slen = strlen(str);
+	else
+		slen = minsize(strlen(str), (size_t) len);
+
+	ret = l_malloc(slen + 1);
+
+	for (i = 0; i < slen; i++)
+		ret[i] = l_ascii_toupper(str[i]);
+
+	ret[i] = '\0';
+
+	return ret;
+}
+
 static inline bool __attribute__ ((always_inline))
 			valid_unicode(wchar_t c)
 {

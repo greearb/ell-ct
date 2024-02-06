@@ -104,6 +104,7 @@ static inline __attribute__ ((always_inline)) char l_ascii_tolower(char c)
 }
 
 char *l_ascii_strdown(const char *str, ssize_t len);
+char *l_ascii_strup(const char *str, ssize_t len);
 
 bool l_utf8_validate(const char *src, size_t len, const char **end);
 size_t l_utf8_strlen(const char *str);
