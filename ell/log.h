@@ -17,6 +17,7 @@ extern "C" {
 
 #define L_LOG_ERR	3
 #define L_LOG_WARNING	4
+#define L_LOG_NOTICE	5
 #define L_LOG_INFO	6
 #define L_LOG_DEBUG	7
 
@@ -84,6 +85,7 @@ void l_debug_disable(void);
 
 #define l_error(format, ...)  l_log(L_LOG_ERR, format, ##__VA_ARGS__)
 #define l_warn(format, ...)   l_log(L_LOG_WARNING, format, ##__VA_ARGS__)
+#define l_notice(format, ...) l_log(L_LOG_NOTICE, format, ##__VA_ARGS__)
 #define l_info(format, ...)   l_log(L_LOG_INFO, format, ##__VA_ARGS__)
 #define l_debug(format, ...)  L_DEBUG_SYMBOL(__debug_desc, format, ##__VA_ARGS__)
 
