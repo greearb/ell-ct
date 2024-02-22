@@ -148,7 +148,7 @@ const char *pem_next(const void *buf, size_t buf_len, char **type_label,
 				*base64_len = buf_ptr - base64_data;
 
 			if (endp) {
-				if (eol == buf + buf_len)
+				if (eol == buf_ptr + buf_len)
 					*endp = eol;
 				else
 					*endp = eol + 1;
