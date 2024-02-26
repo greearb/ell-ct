@@ -1,3 +1,6 @@
+ver 0.63:
+	Fix issue with handling ending boundary of the PEM.
+
 ver 0.62:
 	Add support for cleanup functions and macros.
 	Add support for setting DHCP max attempts.
