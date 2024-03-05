@@ -644,6 +644,7 @@ static void test_iter_variant_2(const void *test_data)
 	assert(ret);
 
 	ret = _gvariant_iter_enter_struct(&variant, &structure);
+	assert(ret);
 
 	ret = _gvariant_iter_next_entry_basic(&structure, 's', &s);
 	assert(ret);
@@ -1047,6 +1048,7 @@ static void test_iter_header_1(const void *test_data)
 
 	ret = _gvariant_iter_init(&iter, NULL, "a(yv)", NULL,
 					test->data + 16, u);
+	assert(ret);
 	ret = _gvariant_iter_enter_array(&iter, &array);
 	assert(ret);
 
@@ -1308,6 +1310,7 @@ static void test_builder_fixed_struct_2(const void *test_data)
 	assert(ret);
 
 	ret = _gvariant_builder_append_basic(builder, 't', &t);
+	assert(ret);
 
 	ret = _gvariant_builder_leave_struct(builder);
 	assert(ret);
