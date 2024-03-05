@@ -511,8 +511,6 @@ LIB_EXPORT void *l_queue_remove_if(struct l_queue *queue,
 			if (!entry->next)
 				queue->tail = prev;
 
-			entry = entry->next;
-
 			data = tmp->data;
 
 			l_free(tmp);
