@@ -843,7 +843,6 @@ static void container_append_struct_offsets(struct container *container,
 
 	offset_size = offset_length(builder->body_pos,
 						container->offset_index);
-	i = container->offset_index - 1;
 
 	start = grow_body(builder, offset_size * container->offset_index, 1);
 
