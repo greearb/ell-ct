@@ -1689,8 +1689,7 @@ LIB_EXPORT unsigned int l_dbus_add_signal_watch(struct l_dbus *dbus,
 	va_start(args, member);
 
 	rule_len = 0;
-	while ((type = va_arg(args, enum l_dbus_match_type)) !=
-			L_DBUS_MATCH_NONE)
+	while (va_arg(args, enum l_dbus_match_type) != L_DBUS_MATCH_NONE)
 		rule_len++;
 
 	va_end(args);
