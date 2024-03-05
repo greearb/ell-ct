@@ -1658,7 +1658,6 @@ static int cert_try_load_der_format(const uint8_t *content, size_t content_len,
 {
 	const uint8_t *seq;
 	size_t seq_len;
-	const uint8_t *elem_data;
 	size_t elem_len;
 	uint8_t tag;
 
@@ -1674,8 +1673,7 @@ static int cert_try_load_der_format(const uint8_t *content, size_t content_len,
 	 * to add any more formats we'll probably need to start guessing
 	 * from the filename suffix.
 	 */
-	if (!(elem_data = asn1_der_find_elem(seq, seq_len,
-						0, &tag, &elem_len)))
+	if (!asn1_der_find_elem(seq, seq_len,0, &tag, &elem_len))
 		return -ENOMSG;
 
 	if (tag == ASN1_ID_SEQUENCE) {
