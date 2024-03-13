@@ -806,6 +806,14 @@ LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_new(
 	return NULL;
 }
 
+LIB_EXPORT struct l_ecc_scalar *l_ecc_scalar_clone(const struct l_ecc_scalar *s)
+{
+	if (!s)
+		return NULL;
+
+	return l_memdup(s, sizeof(*s));
+}
+
 /*
  * Build a scalar = value modulo p where p is the prime number for a given
  * curve.  bytes can contain a number with up to 2x number of digits as the

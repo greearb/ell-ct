@@ -62,6 +62,7 @@ DEFINE_CLEANUP_FUNC(l_ecc_point_free);
 
 struct l_ecc_scalar *l_ecc_scalar_new(const struct l_ecc_curve *curve,
 						const void *buf, size_t len);
+struct l_ecc_scalar *l_ecc_scalar_clone(const struct l_ecc_scalar *s);
 struct l_ecc_scalar *l_ecc_scalar_new_random(
 					const struct l_ecc_curve *curve);
 struct l_ecc_scalar *l_ecc_scalar_new_modp(const struct l_ecc_curve *curve,
