@@ -411,7 +411,7 @@ static void test_uintset_subtract(const void *data)
 	assert(!l_uintset_contains(sub, 64));
 	l_uintset_free(sub);
 
-	l_uintset_take(set_b, 64);
+	assert(l_uintset_take(set_b, 64));
 
 	/* (64) - (65, 63) = (64) */
 	sub = l_uintset_subtract(set_a, set_b);
