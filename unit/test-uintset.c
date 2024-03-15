@@ -424,6 +424,9 @@ static void test_uintset_subtract(const void *data)
 	assert(!l_uintset_contains(sub, 64));
 	assert(l_uintset_contains(sub, 63));
 	l_uintset_free(sub);
+
+	l_uintset_free(set_b);
+	l_uintset_free(set_a);
 }
 
 int main(int argc, char *argv[])
