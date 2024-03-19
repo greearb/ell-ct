@@ -63,11 +63,11 @@ LIB_EXPORT char *l_ascii_strdown(const char *str, ssize_t len)
 	if (len < 0)
 		slen = strlen(str);
 	else
-		slen = minsize(strlen(str), (size_t) len);
+		slen = len;
 
 	ret = l_malloc(slen + 1);
 
-	for (i = 0; i < slen; i++)
+	for (i = 0; i < slen && str[i]; i++)
 		ret[i] = l_ascii_tolower(str[i]);
 
 	ret[i] = '\0';
@@ -95,11 +95,11 @@ LIB_EXPORT char *l_ascii_strup(const char *str, ssize_t len)
 	if (len < 0)
 		slen = strlen(str);
 	else
-		slen = minsize(strlen(str), (size_t) len);
+		slen = len;
 
 	ret = l_malloc(slen + 1);
 
-	for (i = 0; i < slen; i++)
+	for (i = 0; i < slen && str[i]; i++)
 		ret[i] = l_ascii_toupper(str[i]);
 
 	ret[i] = '\0';
