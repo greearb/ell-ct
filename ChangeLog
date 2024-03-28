@@ -1,3 +1,7 @@
+ver 0.64:
+	Fix issue with casting in C++ environment.
+	Fix issue with ASCII string upper and lower helpers.
+
 ver 0.63:
 	Fix issue with handling ending boundary of the PEM.
 
