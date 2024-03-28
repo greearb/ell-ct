@@ -43,6 +43,27 @@ _Pragma("GCC diagnostic pop")						\
 		r;							\
 	})
 
+/*
+ * If ELL headers and iterfaces end up getting compiled in a C++
+ * environment, even though ELL itself is a C source based and is
+ * compiled as such, certain assignments may be flagged by the C++
+ * compiler as errors or warnings. The following portable casts should
+ * be used in such cases, with a preference towards L_PERMISSIVE_CAST
+ * where possible since it is not a cast in C and, therefore, will not
+ * mask otherwise-legitimate warnings in that environment.
+ */
+#ifdef __cplusplus
+#define L_CONST_CAST(t, v)       const_cast<t>(v)
+#define L_REINTERPRET_CAST(t, v) reinterpret_cast<t>(v)
+#define L_STATIC_CAST(t, v)      static_cast<t>(v)
+#define L_PERMISSIVE_CAST(t, v)  L_STATIC_CAST(t, v)
+#else
+#define L_CONST_CAST(t, v)       ((t)(v))
+#define L_REINTERPRET_CAST(t, v) ((t)(v))
+#define L_STATIC_CAST(t, v)      ((t)(v))
+#define L_PERMISSIVE_CAST(t, v)  (v)
+#endif
+
 #define L_PTR_TO_UINT(p) ((unsigned int) ((uintptr_t) (p)))
 #define L_UINT_TO_PTR(u) ((void *) ((uintptr_t) (u)))
 
@@ -381,8 +402,10 @@ inline __attribute__((always_inline)) void _l_close_cleanup(void *p)
 static inline int l_secure_memcmp(const void *a, const void *b,
 					size_t size)
 {
-	const volatile uint8_t *aa = a;
-	const volatile uint8_t *bb = b;
+	const volatile uint8_t *aa =
+		L_PERMISSIVE_CAST(const volatile uint8_t *, a);
+	const volatile uint8_t *bb =
+		L_PERMISSIVE_CAST(const volatile uint8_t *, b);
 	int res = 0, diff, mask;
 
 	/*
@@ -433,9 +456,9 @@ static inline void l_secure_select(bool select_left,
 				const void *left, const void *right,
 				void *out, size_t len)
 {
-	const uint8_t *l = left;
-	const uint8_t *r = right;
-	uint8_t *o = out;
+	const uint8_t *l = L_PERMISSIVE_CAST(const uint8_t *, left);
+	const uint8_t *r = L_PERMISSIVE_CAST(const uint8_t *, right);
+	uint8_t *o = L_PERMISSIVE_CAST(uint8_t *, out);
 	uint8_t mask = -(!!select_left);
 	size_t i;
 
