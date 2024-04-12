@@ -396,6 +396,20 @@ inline __attribute__((always_inline)) void _l_close_cleanup(void *p)
 	(*_offset & _L_BIT_TO_MASK(_offset, _nr)) != 0;			\
 })
 
+#define L_BITS_SET(bits, ...) __extension__ ({				\
+	const unsigned int __elems[] = {__VA_ARGS__};			\
+	size_t __i;							\
+	for (__i = 0; __i < L_ARRAY_SIZE(__elems); __i++)		\
+		L_BIT_SET(bits, __elems[__i]);				\
+})
+
+#define L_BITS_CLEAR(bits, ...) __extension__ ({			\
+	const unsigned int __elems[] = {__VA_ARGS__};			\
+	size_t __i;							\
+	for (__i = 0; __i < L_ARRAY_SIZE(__elems); __i++)		\
+		L_BIT_CLEAR(bits, __elems[__i]);			\
+})
+
 /*
  * Taken from https://github.com/chmike/cst_time_memcmp, adding a volatile to
  * ensure the compiler does not try to optimize the constant time behavior.
