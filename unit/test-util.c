@@ -195,6 +195,81 @@ static void test_safe_atoux(const void *test_data)
 	assert(l_safe_atox8("0xffff", &c) == -ERANGE);
 }
 
+static void test_set_bit(const void *test_data)
+{
+	uint32_t bitmap[2] = { };
+	int one = 0;
+
+	L_BIT_SET(&bitmap[0], 0);
+	L_BIT_SET(bitmap, 1);
+	L_BIT_SET(bitmap, 2);
+	L_BIT_SET(bitmap, 3);
+
+	assert(bitmap[0] == 0x0f);
+	assert(bitmap[1] == 0);
+
+	L_BIT_SET(bitmap, 63);
+	L_BIT_SET(bitmap, 62);
+	L_BIT_SET(bitmap, 61);
+	L_BIT_SET(bitmap, 60);
+
+	assert(bitmap[0] == 0x0fU);
+	assert(bitmap[1] == 0xf0000000U);
+
+	L_BIT_SET(&one, 0);
+	assert(one == 1);
+}
+
+static void test_clear_bit(const void *test_data)
+{
+	uint32_t bitmap[2] = { 0xfU, 0xf0000000U };
+
+	L_BIT_CLEAR(&bitmap[0], 3);
+	L_BIT_CLEAR(bitmap, 63);
+
+	assert(bitmap[0] == 0x07U);
+	assert(bitmap[1] == 0x70000000U);
+}
+
+static void test_is_bit_set(const void *test_data)
+{
+	uint32_t bitmap[2] = { 0xfU, 0xf0000000U };
+	uint8_t one = 1;
+
+	assert(L_BIT_TEST(&bitmap[0], 0) == true);
+	assert(L_BIT_TEST(bitmap, 1) == true);
+	assert(L_BIT_TEST(bitmap, 2) == true);
+	assert(L_BIT_TEST(bitmap, 3) == true);
+	assert(L_BIT_TEST(bitmap, 4) == false);
+
+	assert(L_BIT_TEST(bitmap, 63) == true);
+	assert(L_BIT_TEST(bitmap, 55) == false);
+
+	assert(L_BIT_TEST(&one, 0) == true);
+	assert(L_BIT_TEST(&one, 1) == false);
+}
+
+static void test_set_bits(const void *test_data)
+{
+	uint16_t bitmap[4] = {};
+
+	L_BITS_SET(bitmap, 0, 1, 16, 32, 48);
+
+	assert(bitmap[0] == 0x3);
+	assert(bitmap[1] == 0x1);
+	assert(bitmap[2] == 0x1);
+	assert(bitmap[3] == 0x1);
+}
+
+static void test_clear_bits(const void *test_data)
+{
+	uint16_t bitmap[4] = { 0x3, 0x1, 0x1, 0x1 };
+
+	L_BITS_CLEAR(bitmap, 0, 1, 16, 32, 48);
+
+	assert(l_memeqzero(bitmap, sizeof(bitmap)));
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -211,6 +286,12 @@ int main(int argc, char *argv[])
 	l_test_add("L_IN_SET", test_in_set, NULL);
 
 	l_test_add("l_safe_atoux", test_safe_atoux, NULL);
+
+	l_test_add("L_BIT_SET", test_set_bit, NULL);
+	l_test_add("L_BIT_CLEAR", test_clear_bit, NULL);
+	l_test_add("L_BIT_TEST", test_is_bit_set, NULL);
+	l_test_add("L_BITS_SET", test_set_bits, NULL);
+	l_test_add("L_BITS_CLEAR", test_clear_bits, NULL);
 
 	return l_test_run();
 }
