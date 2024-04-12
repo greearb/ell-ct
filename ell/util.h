@@ -366,6 +366,36 @@ inline __attribute__((always_inline)) void _l_close_cleanup(void *p)
 				(__v && __elems[__i] &&			\
 				 !strcmp(__v, __elems[__i])), ##__VA_ARGS__)
 
+#define _L_BIT_TO_MASK(bits, nr) __extension__ ({			\
+	typeof(*(bits)) _one = 1U;					\
+	const unsigned int _shift = (nr) % (sizeof(_one) * 8);		\
+	_one << _shift;							\
+})
+
+#define _L_BIT_TO_OFFSET(bits, nr) __extension__ ({			\
+	__auto_type _bits = (bits);					\
+	const size_t _offset = (nr) / (sizeof(*_bits) * 8);		\
+	_bits + _offset;						\
+})
+
+#define L_BIT_SET(bits, nr) __extension__ ({				\
+	size_t _nr = (nr);						\
+	__auto_type _offset = _L_BIT_TO_OFFSET(bits, _nr);		\
+	*_offset |= _L_BIT_TO_MASK(_offset, _nr);			\
+})
+
+#define L_BIT_CLEAR(bits, nr) __extension__ ({				\
+	size_t _nr = (nr);						\
+	__auto_type _offset = _L_BIT_TO_OFFSET(bits, _nr);		\
+	*_offset &= ~_L_BIT_TO_MASK(_offset, _nr);			\
+})
+
+#define L_BIT_TEST(bits, nr) __extension__ ({				\
+	size_t _nr = (nr);						\
+	__auto_type _offset = _L_BIT_TO_OFFSET(bits, _nr);		\
+	(*_offset & _L_BIT_TO_MASK(_offset, _nr)) != 0;			\
+})
+
 /*
  * Taken from https://github.com/chmike/cst_time_memcmp, adding a volatile to
  * ensure the compiler does not try to optimize the constant time behavior.
