@@ -1,3 +1,6 @@
+ver 0.65:
+	Add support for bitmaps manipulation macros.
+
 ver 0.64:
 	Fix issue with casting in C++ environment.
 	Fix issue with ASCII string upper and lower helpers.
