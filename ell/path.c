@@ -173,3 +173,22 @@ LIB_EXPORT int l_path_touch(const char *path)
 
 	return -errno;
 }
+
+/**
+ * l_basename:
+ * @path: The path to find the base name of
+ *
+ * This function operates similarly to the glibc version of basename.  This
+ * version never modifies its argument and returns the contents in path after
+ * the last '/' character.  Note that this will result in an empty string being
+ * returned when @path ends in a trailing slash.
+ */
+LIB_EXPORT const char *l_basename(const char *path)
+{
+	const char *p = strrchr(path, '/');
+
+	if (p)
+		return p + 1;
+
+	return path;
+}

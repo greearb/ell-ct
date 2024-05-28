@@ -17,6 +17,8 @@ char *l_path_find(const char *basename, const char *path_str, int mode);
 uint64_t l_path_get_mtime(const char *path);
 int l_path_touch(const char *path);
 
+const char *l_basename(const char *path);
+
 #ifdef __cplusplus
 }
 #endif

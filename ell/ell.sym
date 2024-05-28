@@ -434,6 +434,7 @@ global:
 	l_netlink_unregister;
 	l_netlink_set_debug;
 	/* path */
+	l_basename;
 	l_path_find;
 	l_path_get_mtime;
 	l_path_next;
