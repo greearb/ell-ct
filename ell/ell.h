@@ -53,3 +53,4 @@
 #include <ell/netconfig.h>
 #include <ell/sysctl.h>
 #include <ell/minheap.h>
+#include <ell/notifylist.h>
