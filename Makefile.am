@@ -207,7 +207,8 @@ unit_tests = unit/test-unit \
 			unit/test-path \
 			unit/test-net \
 			unit/test-sysctl \
-			unit/test-minheap
+			unit/test-minheap \
+			unit/test-notifylist
 
 dbus_tests = unit/test-hwdb \
 			unit/test-dbus \
@@ -359,6 +360,8 @@ unit_test_net_LDADD = ell/libell-private.la
 unit_test_sysctl_LDADD = ell/libell-private.la
 
 unit_test_minheap_LDADD = ell/libell-private.la
+
+unit_test_notifylist_LDADD = ell/libell-private.la
 
 unit_test_data_files = unit/settings.test unit/dbus.conf
 
