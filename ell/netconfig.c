@@ -1410,6 +1410,8 @@ LIB_EXPORT void l_netconfig_destroy(struct l_netconfig *netconfig)
 	l_queue_destroy(netconfig->routes.updated, NULL);
 	l_queue_destroy(netconfig->routes.removed, NULL);
 	l_queue_destroy(netconfig->icmp_route_data, NULL);
+	l_queue_destroy(netconfig->slaac_domains, NULL);
+	l_queue_destroy(netconfig->slaac_dnses, NULL);
 	l_free(netconfig);
 }
 
