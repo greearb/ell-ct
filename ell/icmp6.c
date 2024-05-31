@@ -787,8 +787,16 @@ struct l_icmp6_router *_icmp6_router_new()
 
 void _icmp6_router_free(struct l_icmp6_router *r)
 {
+	unsigned int i;
+
 	l_free(r->routes);
 	l_free(r->ac_prefixes);
+	l_free(r->dns_list);
+
+	for (i = 0; i < r->n_domains; i++)
+		l_free(r->domains[i].domain);
+
+	l_free(r->domains);
 	l_free(r);
 }
 
