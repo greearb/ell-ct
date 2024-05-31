@@ -283,10 +283,10 @@ static bool acd_read_handler(struct l_io *io, void *user_data)
 				target_conflict ? "Target" : "Source",
 				NIPQUAD(acd->ip));
 
+		l_acd_stop(acd);
+
 		if (acd->event_func)
 			acd->event_func(L_ACD_EVENT_CONFLICT, acd->user_data);
-
-		l_acd_stop(acd);
 
 		break;
 	case ACD_STATE_ANNOUNCED:
