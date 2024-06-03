@@ -64,6 +64,7 @@ unit/test-path
 unit/test-net
 unit/test-sysctl
 unit/test-minheap
+unit/test-notifylist
 unit/cert-*.pem
 unit/cert-*.csr
 unit/cert-*.srl
