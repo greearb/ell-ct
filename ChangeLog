@@ -1,3 +1,8 @@
+ver 0.66:
+	Fix issue with handling event callback when stopping ACD.
+	Fix issue with handling ICMPv6 DNS and domain lists.
+	Add support for notification lists.
+
 ver 0.65:
 	Add support for bitmaps manipulation macros.
 
