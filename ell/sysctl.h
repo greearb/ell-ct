@@ -20,6 +20,11 @@ int l_sysctl_get_u32(uint32_t *out_v, const char *format, ...)
 int l_sysctl_set_u32(uint32_t v, const char *format, ...)
 			__attribute__((format(printf, 2, 3)));
 
+int l_sysctl_get_char(char *out_c, const char *format, ...)
+			__attribute__((format(printf, 2, 3)));
+int l_sysctl_set_char(char c, const char *format, ...)
+			__attribute__((format(printf, 2, 3)));
+
 #ifdef __cplusplus
 }
 #endif

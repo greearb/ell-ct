@@ -95,3 +95,27 @@ LIB_EXPORT int l_sysctl_set_u32(uint32_t v, const char *format, ...)
 
 	return sysctl_write(filename, valuestr, len);
 }
+
+LIB_EXPORT int l_sysctl_get_char(char *out_c, const char *format, ...)
+{
+	_auto_(l_free) char *filename = NULL;
+	va_list ap;
+
+	va_start(ap, format);
+	filename = l_strdup_vprintf(format, ap);
+	va_end(ap);
+
+	return sysctl_read(filename, out_c, sizeof(char));
+}
+
+LIB_EXPORT int l_sysctl_set_char(char c, const char *format, ...)
+{
+	_auto_(l_free) char *filename = NULL;
+	va_list ap;
+
+	va_start(ap, format);
+	filename = l_strdup_vprintf(format, ap);
+	va_end(ap);
+
+	return sysctl_write(filename, &c, sizeof(char));
+}

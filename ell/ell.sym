@@ -788,6 +788,8 @@ global:
 	/* sysctl */
 	l_sysctl_get_u32;
 	l_sysctl_set_u32;
+	l_sysctl_get_char;
+	l_sysctl_set_char;
 	/* notifylist */
 	l_notifylist_new;
 	l_notifylist_free;
