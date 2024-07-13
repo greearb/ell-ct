@@ -23,6 +23,7 @@ global:
 	l_util_hexdumpv;
 	l_util_debug;
 	l_util_get_debugfs_path;
+	l_util_pagesize;
 	l_memeq;
 	l_secure_memeq;
 	l_safe_atox8;

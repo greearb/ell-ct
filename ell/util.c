@@ -15,6 +15,7 @@
 #include <limits.h>
 #include <stdint.h>
 #include <errno.h>
+#include <unistd.h>
 
 #include "utf8.h"
 #include "util.h"
@@ -811,4 +812,15 @@ LIB_EXPORT int l_safe_atox32(const char *s, uint32_t *out_x)
 		return -EINVAL;
 
 	return safe_atou(s, 16, out_x);
+}
+
+LIB_EXPORT size_t l_util_pagesize(void)
+{
+	static size_t page_size = 0;
+
+	if (likely(page_size > 0))
+		return page_size;
+
+	page_size = sysconf(_SC_PAGESIZE);
+	return page_size;
 }

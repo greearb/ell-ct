@@ -515,6 +515,8 @@ int l_safe_atox32(const char *s, uint32_t *out_u);
 int l_safe_atox16(const char *s, uint16_t *out_u);
 int l_safe_atox8(const char *s, uint8_t *out_u);
 
+size_t l_util_pagesize(void);
+
 #ifdef __cplusplus
 }
 #endif
