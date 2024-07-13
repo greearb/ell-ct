@@ -15,6 +15,7 @@
 #include <errno.h>
 
 #include <ell/ell.h>
+#include <ell/useful.h>
 
 static void test_hexstring(const void *test_data)
 {
@@ -270,6 +271,23 @@ static void test_clear_bits(const void *test_data)
 	assert(l_memeqzero(bitmap, sizeof(bitmap)));
 }
 
+static void test_roundup_pow_of_two(const void *test_data)
+{
+	assert(roundup_pow_of_two(2UL) == 2UL);
+	assert(roundup_pow_of_two(3UL) == 4UL);
+	assert(roundup_pow_of_two(5UL) == 8UL);
+	assert(roundup_pow_of_two(15UL) == 16UL);
+	assert(roundup_pow_of_two(25UL) == 32UL);
+	assert(roundup_pow_of_two(1025) == 2048UL);
+
+	if (sizeof(unsigned long) > 4) {
+		unsigned long l = UINT_MAX;
+
+		l += 1;
+		assert(roundup_pow_of_two(UINT_MAX) == l);
+	}
+}
+
 int main(int argc, char *argv[])
 {
 	l_test_init(&argc, &argv);
@@ -292,6 +310,8 @@ int main(int argc, char *argv[])
 	l_test_add("L_BIT_TEST", test_is_bit_set, NULL);
 	l_test_add("L_BITS_SET", test_set_bits, NULL);
 	l_test_add("L_BITS_CLEAR", test_clear_bits, NULL);
+
+	l_test_add("roundup_pow_of_two", test_roundup_pow_of_two, NULL);
 
 	return l_test_run();
 }
