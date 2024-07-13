@@ -52,6 +52,12 @@ static inline unsigned char bit_field(const unsigned char oct,
 	return (oct >> start) & mask;
 }
 
+/* Must be called with n >= 2 and n <= ULONG_MAX / 2 + 1 */
+static inline unsigned long roundup_pow_of_two(unsigned long n)
+{
+	return 1UL << (sizeof(unsigned long) * 8 - __builtin_clzl(n - 1));
+}
+
 #define DIV_ROUND_CLOSEST(x, divisor)			\
 ({							\
 	typeof(divisor) _d = (divisor);			\
