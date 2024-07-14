@@ -34,25 +34,18 @@ struct l_string {
 	char *str;
 };
 
-static inline size_t next_power(size_t len)
-{
-	size_t n = 1;
-
-	if (len > SIZE_MAX / 2)
-		return SIZE_MAX;
-
-	while (n < len)
-		n = n << 1;
-
-	return n;
-}
-
 static void grow_string(struct l_string *str, size_t extra)
 {
 	if (str->len + extra < str->max)
 		return;
 
-	str->max = next_power(str->len + extra + 1);
+	str->max = str->len + extra + 1;
+
+	if (str->max < l_util_pagesize())
+		str->max = roundup_pow_of_two(str->max);
+	else
+		str->max = align_len(str->max, l_util_pagesize());
+
 	str->str = l_realloc(str->str, str->max);
 }
 
