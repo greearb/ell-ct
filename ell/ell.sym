@@ -441,6 +441,8 @@ global:
 	l_netlink_message_append;
 	l_netlink_message_appendv;
 	l_netlink_message_add_header;
+	l_netlink_message_enter_nested;
+	l_netlink_message_leave_nested;
 	/* path */
 	l_basename;
 	l_path_find;

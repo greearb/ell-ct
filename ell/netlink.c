@@ -727,6 +727,15 @@ static int add_attribute(struct l_netlink_message *message,
 {
 	struct nlattr *attr = message_tail(message);
 	int offset = message->hdr->nlmsg_len;
+	int i;
+
+	for (i = 0; i < message->nest_level; i++) {
+		uint32_t nested_len = offset + NLA_HDRLEN + NLA_ALIGN(len) -
+					message->nest_offset[i];
+
+		if (nested_len > USHRT_MAX)
+			return -ERANGE;
+	}
 
 	attr->nla_type = type;
 	attr->nla_len = NLA_HDRLEN + len;
@@ -893,5 +902,50 @@ LIB_EXPORT int l_netlink_message_add_header(struct l_netlink_message *message,
 		return r;
 
 	memcpy(dest, header, len);
+	return 0;
+}
+
+LIB_EXPORT int l_netlink_message_enter_nested(struct l_netlink_message *message,
+						uint16_t type)
+{
+	int r;
+
+	if (unlikely(!message))
+		return -EINVAL;
+
+	if (unlikely(message->nest_level == L_ARRAY_SIZE(message->nest_offset)))
+		return -EOVERFLOW;
+
+	r = message_grow(message, NLA_HDRLEN);
+	if (r < 0)
+		return r;
+
+	r = add_attribute(message, type | NLA_F_NESTED, 0, NULL);
+	if (r < 0)
+		return false;
+
+	message->nest_offset[message->nest_level] = r;
+	message->nest_level += 1;
+
+	return 0;
+}
+
+LIB_EXPORT int l_netlink_message_leave_nested(struct l_netlink_message *message)
+{
+	struct nlattr *nla;
+	uint32_t offset;
+
+	if (unlikely(!message))
+		return -EINVAL;
+
+	if (unlikely(message->nest_level == 0))
+		return -EOVERFLOW;
+
+	message->nest_level -= 1;
+	offset = message->nest_offset[message->nest_level];
+
+	nla = message->data + offset;
+	nla->nla_len = message->hdr->nlmsg_len - offset;
+
 	return 0;
 }
