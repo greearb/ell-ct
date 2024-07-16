@@ -53,6 +53,9 @@ struct l_netlink_message *l_netlink_message_ref(
 void l_netlink_message_unref(struct l_netlink_message *message);
 int l_netlink_message_append(struct l_netlink_message *message, uint16_t type,
 					const void *data, size_t len);
+int l_netlink_message_appendv(struct l_netlink_message *message,
+					uint16_t type,
+					const struct iovec *iov, size_t iov_len);
 int l_netlink_message_add_header(struct l_netlink_message *message,
 					const void *header, size_t len);
 

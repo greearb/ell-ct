@@ -439,6 +439,7 @@ global:
 	l_netlink_message_ref;
 	l_netlink_message_unref;
 	l_netlink_message_append;
+	l_netlink_message_appendv;
 	l_netlink_message_add_header;
 	/* path */
 	l_basename;

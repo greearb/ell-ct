@@ -821,6 +821,40 @@ LIB_EXPORT int l_netlink_message_append(struct l_netlink_message *message,
 	return 0;
 }
 
+LIB_EXPORT int l_netlink_message_appendv(struct l_netlink_message *message,
+					uint16_t type,
+					const struct iovec *iov, size_t iov_len)
+{
+	size_t len = 0;
+	void *dest;
+	size_t i;
+	int r;
+
+	if (unlikely(!message))
+		return -EINVAL;
+
+	for (i = 0; i < iov_len; i++)
+		len += iov[i].iov_len;
+
+	if (len > USHRT_MAX - NLA_HDRLEN)
+		return -ERANGE;
+
+	r = message_grow(message, NLA_HDRLEN + NLA_ALIGN(len));
+	if (r < 0)
+		return r;
+
+	r = add_attribute(message, type, len, &dest);
+	if (r < 0)
+		return r;
+
+	for (i = 0, len = 0; i < iov_len; i++, iov++) {
+		memcpy(dest + len, iov->iov_base, iov->iov_len);
+		len += iov->iov_len;
+	}
+
+	return 0;
+}
+
 int netlink_message_reserve_header(struct l_netlink_message *message,
 					size_t len, void **out_header)
 {
