@@ -44,6 +44,18 @@ bool l_netlink_set_debug(struct l_netlink *netlink,
 			l_netlink_debug_func_t function,
 			void *user_data, l_netlink_destroy_func_t destroy);
 
+struct l_netlink_message *l_netlink_message_new(uint16_t type, uint16_t flags);
+struct l_netlink_message *l_netlink_message_new_sized(uint16_t type,
+							uint16_t flags,
+							size_t initial_size);
+struct l_netlink_message *l_netlink_message_ref(
+					struct l_netlink_message *message);
+void l_netlink_message_unref(struct l_netlink_message *message);
+int l_netlink_message_append(struct l_netlink_message *message, uint16_t type,
+					const void *data, size_t len);
+int l_netlink_message_add_header(struct l_netlink_message *message,
+					const void *header, size_t len);
+
 #ifdef __cplusplus
 }
 #endif

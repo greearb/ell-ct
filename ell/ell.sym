@@ -434,6 +434,12 @@ global:
 	l_netlink_register;
 	l_netlink_unregister;
 	l_netlink_set_debug;
+	l_netlink_message_new;
+	l_netlink_message_new_sized;
+	l_netlink_message_ref;
+	l_netlink_message_unref;
+	l_netlink_message_append;
+	l_netlink_message_add_header;
 	/* path */
 	l_basename;
 	l_path_find;
