@@ -62,6 +62,61 @@ int l_netlink_message_enter_nested(struct l_netlink_message *message,
 					uint16_t type);
 int l_netlink_message_leave_nested(struct l_netlink_message *message);
 
+static inline int l_netlink_message_append_u8(struct l_netlink_message *message,
+						uint16_t type, uint8_t u8)
+{
+	return l_netlink_message_append(message, type, &u8, sizeof(uint8_t));
+}
+
+static inline int l_netlink_message_append_u16(struct l_netlink_message *message,
+						uint16_t type, uint16_t u16)
+{
+	return l_netlink_message_append(message, type, &u16, sizeof(uint16_t));
+}
+
+static inline int l_netlink_message_append_u32(struct l_netlink_message *message,
+						uint16_t type, uint32_t u32)
+{
+	return l_netlink_message_append(message, type, &u32, sizeof(uint32_t));
+}
+
+static inline int l_netlink_message_append_u64(struct l_netlink_message *message,
+						uint16_t type, uint64_t u64)
+{
+	return l_netlink_message_append(message, type, &u64, sizeof(uint64_t));
+}
+
+static inline int l_netlink_message_append_s8(struct l_netlink_message *message,
+						uint16_t type, int8_t s8)
+{
+	return l_netlink_message_append(message, type, &s8, sizeof(int8_t));
+}
+
+static inline int l_netlink_message_append_s16(struct l_netlink_message *message,
+						uint16_t type, int16_t s16)
+{
+	return l_netlink_message_append(message, type, &s16, sizeof(int16_t));
+}
+
+static inline int l_netlink_message_append_s32(struct l_netlink_message *message,
+						uint16_t type, int32_t s32)
+{
+	return l_netlink_message_append(message, type, &s32, sizeof(int32_t));
+}
+
+static inline int l_netlink_message_append_s64(struct l_netlink_message *message,
+						uint16_t type, int64_t s64)
+{
+	return l_netlink_message_append(message, type, &s64, sizeof(int64_t));
+}
+
+static inline int l_netlink_message_append_mac(struct l_netlink_message *message,
+						uint16_t type,
+						const uint8_t mac[static 6])
+{
+	return l_netlink_message_append(message, type, mac, 6);
+}
+
 #ifdef __cplusplus
 }
 #endif
