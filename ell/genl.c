@@ -19,19 +19,14 @@
 #include "queue.h"
 #include "io.h"
 #include "private.h"
+#include "netlink.h"
 #include "netlink-private.h"
 #include "notifylist.h"
 #include "genl.h"
 
-#define MAX_NESTING_LEVEL 4
 #define GENL_DEBUG(fmt, args...)	\
 	l_util_debug(genl->debug_callback, genl->debug_data, "%s:%i " fmt, \
 			__func__, __LINE__, ## args)
-
-struct nest_info {
-	uint16_t type;
-	uint16_t offset;
-};
 
 struct unicast_watch {
 	struct l_notifylist_entry super;
@@ -89,11 +84,7 @@ struct l_genl_msg {
 	char *error_msg;
 	uint8_t cmd;
 	uint8_t version;
-	void *data;
-	uint32_t size;
-	uint32_t len;
-	struct nest_info nests[MAX_NESTING_LEVEL];
-	uint8_t nesting_level;
+	struct l_netlink_message *nlm;
 };
 
 struct genl_request {
@@ -714,44 +705,6 @@ static bool match_request_hid(const void *a, const void *b)
 	return request->handle_id == id;
 }
 
-static struct l_genl_msg *msg_alloc(uint8_t cmd, uint8_t version, uint32_t size)
-{
-	struct l_genl_msg *msg;
-
-	msg = l_new(struct l_genl_msg, 1);
-
-	msg->cmd = cmd;
-	msg->version = version;
-
-	msg->len = NLMSG_HDRLEN + GENL_HDRLEN;
-	msg->size = msg->len + NLMSG_ALIGN(size);
-
-	msg->data = l_realloc(NULL, msg->size);
-	memset(msg->data, 0, msg->size);
-	msg->nesting_level = 0;
-
-	return l_genl_msg_ref(msg);
-}
-
-static bool msg_grow(struct l_genl_msg *msg, uint32_t needed)
-{
-	uint32_t grow_by;
-
-	if (msg->size >= msg->len + needed)
-		return true;
-
-	grow_by = msg->len + needed - msg->size;
-
-	if (grow_by < 32)
-		grow_by = 128;
-
-	msg->data = l_realloc(msg->data, msg->size + grow_by);
-	memset(msg->data + msg->size, 0, grow_by);
-	msg->size += grow_by;
-
-	return true;
-}
-
 static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 {
 	struct l_genl_msg *msg;
@@ -771,13 +724,10 @@ static struct l_genl_msg *msg_create(const struct nlmsghdr *nlmsg)
 		goto done;
 	}
 
-	msg->data = l_memdup(nlmsg, nlmsg->nlmsg_len);
+	msg->nlm = netlink_message_from_nlmsg(nlmsg);
 
-	msg->len = nlmsg->nlmsg_len;
-	msg->size = nlmsg->nlmsg_len;
-
-	if (msg->len >= GENL_HDRLEN) {
-		struct genlmsghdr *genlmsg = msg->data + NLMSG_HDRLEN;
+	if (nlmsg->nlmsg_len >= NLMSG_LENGTH(GENL_HDRLEN)) {
+		struct genlmsghdr *genlmsg = msg->nlm->data + NLMSG_HDRLEN;
 
 		msg->cmd = genlmsg->cmd;
 		msg->version = genlmsg->version;
@@ -794,23 +744,23 @@ static const void *msg_as_bytes(struct l_genl_msg *msg, uint16_t type,
 	struct nlmsghdr *nlmsg;
 	struct genlmsghdr *genlmsg;
 
-	nlmsg = msg->data;
+	nlmsg = msg->nlm->data;
 
-	nlmsg->nlmsg_len = msg->len;
 	nlmsg->nlmsg_type = type;
 	nlmsg->nlmsg_flags = flags;
 	nlmsg->nlmsg_seq = seq;
 	nlmsg->nlmsg_pid = pid;
 
-	genlmsg = msg->data + NLMSG_HDRLEN;
+	genlmsg = msg->nlm->data + NLMSG_HDRLEN;
 
 	genlmsg->cmd = msg->cmd;
 	genlmsg->version = msg->version;
+	genlmsg->reserved = 0;
 
 	if (out_size)
-		*out_size = msg->len;
+		*out_size = nlmsg->nlmsg_len;
 
-	return msg->data;
+	return msg->nlm->data;
 }
 
 static void write_watch_destroy(void *user_data)
@@ -842,7 +792,7 @@ static bool can_write_data(struct l_io *io, void *user_data)
 		return false;
 	}
 
-	l_util_hexdump(false, request->msg->data, bytes_written,
+	l_util_hexdump(false, data, bytes_written,
 				genl->debug_callback, genl->debug_data);
 
 	l_queue_push_tail(genl->pending_list, request);
@@ -1472,7 +1422,14 @@ LIB_EXPORT struct l_genl_msg *l_genl_msg_new(uint8_t cmd)
 
 LIB_EXPORT struct l_genl_msg *l_genl_msg_new_sized(uint8_t cmd, uint32_t size)
 {
-	return msg_alloc(cmd, 0x00, size);
+	struct l_genl_msg *msg = l_new(struct l_genl_msg, 1);
+
+	msg->cmd = cmd;
+	msg->nlm = l_netlink_message_new_sized(0, 0, size + GENL_HDRLEN);
+	netlink_message_reserve_header(msg->nlm,
+					sizeof(struct genlmsghdr), NULL);
+
+	return l_genl_msg_ref(msg);
 }
 
 LIB_EXPORT struct l_genl_msg *l_genl_msg_new_from_data(const void *data,
@@ -1516,7 +1473,7 @@ LIB_EXPORT void l_genl_msg_unref(struct l_genl_msg *msg)
 		return;
 
 	l_free(msg->error_msg);
-	l_free(msg->data);
+	l_netlink_message_unref(msg->nlm);
 	l_free(msg);
 }
 
@@ -1555,22 +1512,11 @@ LIB_EXPORT const char *l_genl_msg_get_extended_error(struct l_genl_msg *msg)
 LIB_EXPORT bool l_genl_msg_append_attr(struct l_genl_msg *msg, uint16_t type,
 						uint16_t len, const void *data)
 {
-	struct nlattr *nla;
-
 	if (unlikely(!msg))
 		return false;
 
-	if (!msg_grow(msg, NLA_HDRLEN + NLA_ALIGN(len)))
+	if (l_netlink_message_append(msg->nlm, type, data, len) < 0)
 		return false;
-
-	nla = msg->data + msg->len;
-	nla->nla_len = NLA_HDRLEN + len;
-	nla->nla_type = type;
-
-	if (len)
-		memcpy(msg->data + msg->len + NLA_HDRLEN, data, len);
-
-	msg->len += NLA_HDRLEN + NLA_ALIGN(len);
 
 	return true;
 }
@@ -1579,31 +1525,11 @@ LIB_EXPORT bool l_genl_msg_append_attrv(struct l_genl_msg *msg, uint16_t type,
 					const struct iovec *iov,
 					size_t iov_len)
 {
-	struct nlattr *nla;
-	size_t len = 0;
-	unsigned int i;
-
 	if (unlikely(!msg))
 		return false;
 
-	for (i = 0; i < iov_len; i++)
-		len += iov[i].iov_len;
-
-	if (!msg_grow(msg, NLA_HDRLEN + NLA_ALIGN(len)))
+	if (l_netlink_message_appendv(msg->nlm, type, iov, iov_len) < 0)
 		return false;
-
-	nla = msg->data + msg->len;
-	nla->nla_len = NLA_HDRLEN + len;
-	nla->nla_type = type;
-
-	msg->len += NLA_HDRLEN;
-
-	for (i = 0; i < iov_len; i++, iov++) {
-		memcpy(msg->data + msg->len, iov->iov_base, iov->iov_len);
-		msg->len += iov->iov_len;
-	}
-
-	msg->len += NLA_ALIGN(len) - len;
 
 	return true;
 }
@@ -1613,36 +1539,19 @@ LIB_EXPORT bool l_genl_msg_enter_nested(struct l_genl_msg *msg, uint16_t type)
 	if (unlikely(!msg))
 		return false;
 
-	if (unlikely(msg->nesting_level == MAX_NESTING_LEVEL))
+	if (l_netlink_message_enter_nested(msg->nlm, type) < 0)
 		return false;
-
-	if (!msg_grow(msg, NLA_HDRLEN))
-		return false;
-
-	msg->nests[msg->nesting_level].type = type | NLA_F_NESTED;
-	msg->nests[msg->nesting_level].offset = msg->len;
-	msg->nesting_level += 1;
-
-	msg->len += NLA_HDRLEN;
 
 	return true;
 }
 
 LIB_EXPORT bool l_genl_msg_leave_nested(struct l_genl_msg *msg)
 {
-	struct nlattr *nla;
-
 	if (unlikely(!msg))
 		return false;
 
-	if (unlikely(msg->nesting_level == 0))
+	if (l_netlink_message_leave_nested(msg->nlm) < 0)
 		return false;
-
-	nla = msg->data + msg->nests[msg->nesting_level - 1].offset;
-	nla->nla_type = msg->nests[msg->nesting_level - 1].type;
-	nla->nla_len = msg->len - msg->nests[msg->nesting_level - 1].offset;
-
-	msg->nesting_level -= 1;
 
 	return true;
 }
@@ -1656,11 +1565,12 @@ LIB_EXPORT bool l_genl_attr_init(struct l_genl_attr *attr,
 	if (unlikely(!attr) || unlikely(!msg))
 		return false;
 
-	if (!msg->data || msg->len < NLMSG_HDRLEN + GENL_HDRLEN)
+	if (!msg->nlm ||
+			msg->nlm->hdr->nlmsg_len < NLMSG_HDRLEN + GENL_HDRLEN)
 		return false;
 
-	nla = msg->data + NLMSG_HDRLEN + GENL_HDRLEN;
-	len = msg->len - NLMSG_HDRLEN - GENL_HDRLEN;
+	nla = msg->nlm->data + NLMSG_HDRLEN + GENL_HDRLEN;
+	len = msg->nlm->hdr->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN;
 
 	if (!NLA_OK(nla, len))
 		return false;
