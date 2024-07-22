@@ -14,6 +14,8 @@
 #include <linux/genetlink.h>
 #include <ell/ell.h>
 
+#include "ell/netlink-private.h"
+
 static bool do_print = false;
 
 static void do_debug(const char *str, void *user_data)
@@ -124,6 +126,38 @@ static void build_set_station(const void *data)
 	assert(!memcmp(raw, set_station_request, size));
 
 	l_genl_msg_unref(msg);
+}
+
+static void build_set_station_netlink(const void *data)
+{
+	const struct set_station_test *test = data;
+	struct l_netlink_message *m;
+	struct genlmsghdr genlhdr = { .cmd = 18, .version = 0, .reserved = 0 };
+
+	m = l_netlink_message_new(0x17, NLM_F_REQUEST | NLM_F_ACK);
+	assert(m);
+
+	assert(!l_netlink_message_add_header(m, &genlhdr, sizeof(genlhdr)));
+	assert(!l_netlink_message_append_u32(m, 3, test->ifindex));
+	assert(!l_netlink_message_append_mac(m, 6, test->mac));
+	assert(!l_netlink_message_append(m, 67,
+					test->flags, sizeof(test->flags)));
+
+	m->hdr->nlmsg_seq = test->seq;
+	m->hdr->nlmsg_pid = test->pid;
+
+	if (do_print) {
+		l_util_hexdump(false, m->data, m->hdr->nlmsg_len,
+					do_debug, "[MSG] ");
+		l_util_hexdump(true, set_station_request,
+				sizeof(set_station_request), do_debug, "[MSG] ");
+	}
+
+	assert(m->hdr->nlmsg_len == sizeof(set_station_request));
+	assert(!memcmp(m->data, set_station_request,
+					sizeof(set_station_request)));
+
+	l_netlink_message_unref(m);
 }
 
 static const unsigned char set_rekey_offload_request[] = {
@@ -250,6 +284,42 @@ static void build_set_rekey_offload(const void *data)
 	assert(!memcmp(raw, set_rekey_offload_request, size));
 
 	l_genl_msg_unref(msg);
+}
+
+static void build_set_rekey_offload_netlink(const void *data)
+{
+	const struct set_rekey_offload_test *test = data;
+	struct l_netlink_message *m;
+	struct genlmsghdr genlhdr = { .cmd = 79, .version = 0, .reserved = 0 };
+
+	m = l_netlink_message_new(0x1b, NLM_F_REQUEST | NLM_F_ACK);
+	assert(m);
+
+	assert(!l_netlink_message_add_header(m, &genlhdr, sizeof(genlhdr)));
+	assert(!l_netlink_message_append_u32(m, 3, test->ifindex));
+	assert(!l_netlink_message_enter_nested(m, 122));
+	assert(!l_netlink_message_append(m, 1, test->kek, sizeof(test->kek)));
+	assert(!l_netlink_message_append(m, 2, test->kck, sizeof(test->kck)));
+	assert(!l_netlink_message_append(m, 3, test->replay_counter,
+						sizeof(test->replay_counter)));
+	assert(!l_netlink_message_leave_nested(m));
+
+	m->hdr->nlmsg_seq = test->seq;
+	m->hdr->nlmsg_pid = test->pid;
+
+	if (do_print) {
+		l_util_hexdump(false, m->data, m->hdr->nlmsg_len,
+					do_debug, "[MSG] ");
+		l_util_hexdump(true, set_rekey_offload_request,
+				sizeof(set_rekey_offload_request),
+				do_debug, "[MSG] ");
+	}
+
+	assert(m->hdr->nlmsg_len == sizeof(set_rekey_offload_request));
+	assert(!memcmp(m->data, set_rekey_offload_request,
+					sizeof(set_rekey_offload_request)));
+
+	l_netlink_message_unref(m);
 }
 
 /*
@@ -441,8 +511,12 @@ int main(int argc, char *argv[])
 				parse_set_rekey_offload, &rekey_offload);
 
 	l_test_add("Build Set Station Request", build_set_station, &set_station);
+	l_test_add("Build Set Station Request (Netlink)",
+			build_set_station_netlink, &set_station);
 	l_test_add("Build Set Rekey Offload Request",
 				build_set_rekey_offload, &rekey_offload);
+	l_test_add("Build Set Rekey Offload Request (Netlink)",
+			build_set_rekey_offload_netlink, &rekey_offload);
 
 	l_test_add("libnl-generated Example with Nesting",
 				parse_libnl_nested, NULL);
