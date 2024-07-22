@@ -47,3 +47,5 @@ bool netlink_parse_ext_ack_error(const struct nlmsghdr *nlmsg,
 					uint32_t *out_error_offset);
 int netlink_message_reserve_header(struct l_netlink_message *message,
 					size_t header_len, void **out_header);
+struct l_netlink_message *netlink_message_from_nlmsg(
+						const struct nlmsghdr *nlmsg);

@@ -781,6 +781,17 @@ LIB_EXPORT struct l_netlink_message *l_netlink_message_new(uint16_t type,
 	return l_netlink_message_new_sized(type, flags, 256 - NLMSG_HDRLEN);
 }
 
+struct l_netlink_message *netlink_message_from_nlmsg(
+						const struct nlmsghdr *nlmsg)
+{
+	struct l_netlink_message *message = l_new(struct l_netlink_message, 1);
+
+	message->hdr = l_memdup(nlmsg, nlmsg->nlmsg_len);
+	message->size = nlmsg->nlmsg_len;
+
+	return l_netlink_message_ref(message);
+}
+
 LIB_EXPORT struct l_netlink_message *l_netlink_message_ref(
 					struct l_netlink_message *message)
 {
