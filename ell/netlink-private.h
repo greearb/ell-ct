@@ -40,6 +40,7 @@ struct l_netlink_message {
 	};
 	uint32_t nest_offset[4];
 	uint8_t nest_level;
+	bool sealed : 1;
 };
 
 bool netlink_parse_ext_ack_error(const struct nlmsghdr *nlmsg,

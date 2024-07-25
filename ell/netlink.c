@@ -685,6 +685,9 @@ static int message_grow(struct l_netlink_message *message, uint32_t needed)
 {
 	uint32_t grow_to;
 
+	if (message->sealed)
+		return -EPERM;
+
 	if (message->size - message->hdr->nlmsg_len >= needed)
 		return 0;
 
