@@ -410,10 +410,6 @@ LIB_EXPORT unsigned int l_netlink_send(struct l_netlink *netlink,
 	if (unlikely(!netlink))
 		return 0;
 
-	if (!netlink->command_queue || !netlink->command_pending ||
-						!netlink->command_lookup)
-		return 0;
-
 	if (flags & 0xff)
 		return 0;
 
@@ -469,10 +465,6 @@ LIB_EXPORT bool l_netlink_cancel(struct l_netlink *netlink, unsigned int id)
 	struct command *command;
 
 	if (unlikely(!netlink || !id))
-		return false;
-
-	if (!netlink->command_queue || !netlink->command_pending ||
-						!netlink->command_lookup)
 		return false;
 
 	command = l_hashmap_remove(netlink->command_lookup, L_UINT_TO_PTR(id));
