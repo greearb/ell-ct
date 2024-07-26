@@ -27,6 +27,7 @@
 #include "log.h"
 #include "util.h"
 #include "time.h"
+#include "netlink-private.h"
 #include "rtnl-private.h"
 #include "rtnl.h"
 #include "private.h"
@@ -712,6 +713,23 @@ static size_t rta_add_address(void *rta_buf, unsigned short type,
 	}
 
 	return 0;
+}
+
+static int append_address(struct l_netlink_message *nlm, uint16_t type,
+				uint8_t family,
+				const struct in6_addr *v6,
+				const struct in_addr *v4)
+{
+	switch (family) {
+	case AF_INET6:
+		l_netlink_message_append(nlm, type, v6, sizeof(struct in6_addr));
+		return 0;
+	case AF_INET:
+		l_netlink_message_append(nlm, type, v4, sizeof(struct in_addr));
+		return 0;
+	}
+
+	return -EAFNOSUPPORT;
 }
 
 static void l_rtnl_route_extract(const struct rtmsg *rtmsg, uint32_t len,
@@ -1567,4 +1585,62 @@ LIB_EXPORT struct l_netlink *l_rtnl_get()
 		rtnl = l_netlink_new(NETLINK_ROUTE);
 
 	return rtnl;
+}
+
+struct l_netlink_message *rtnl_message_from_route(uint16_t type, uint16_t flags,
+						int ifindex,
+						const struct l_rtnl_route *rt)
+{
+	struct l_netlink_message *nlm = l_netlink_message_new(type, flags);
+	uint64_t now = l_time_now();
+	struct rtmsg rtm;
+
+	memset(&rtm, 0, sizeof(struct rtmsg));
+	rtm.rtm_family = rt->family;
+	rtm.rtm_table = RT_TABLE_MAIN;
+	rtm.rtm_protocol = rt->protocol;
+	rtm.rtm_type = RTN_UNICAST;
+	rtm.rtm_scope = rt->scope;
+	rtm.rtm_dst_len = rt->dst_prefix_len;
+
+	l_netlink_message_add_header(nlm, &rtm, sizeof(rtm));
+	l_netlink_message_append_u32(nlm, RTA_OIF, ifindex);
+
+	if (rt->priority)
+		l_netlink_message_append_u32(nlm, RTA_PRIORITY,
+						rt->priority + ifindex);
+
+	if (!address_is_null(rt->family, &rt->gw.in_addr, &rt->gw.in6_addr))
+		append_address(nlm, RTA_GATEWAY, rt->family,
+					&rt->gw.in6_addr, &rt->gw.in_addr);
+
+	if (rt->dst_prefix_len)
+		append_address(nlm, RTA_DST, rt->family,
+					&rt->dst.in6_addr, &rt->dst.in_addr);
+
+	if (!address_is_null(rt->family, &rt->prefsrc.in_addr,
+						&rt->prefsrc.in6_addr))
+		append_address(nlm, RTA_PREFSRC, rt->family,
+						&rt->prefsrc.in6_addr,
+						&rt->prefsrc.in_addr);
+
+	if (rt->mtu) {
+		/*
+		 * NOTE: Legacy RTNL messages do not use NLA_F_NESTED flag
+		 * as they should.  l_netlink_message_enter_nested does.  The
+		 * kernel should still accept this however
+		 */
+		l_netlink_message_enter_nested(nlm, RTA_METRICS);
+		l_netlink_message_append_u32(nlm, RTAX_MTU, rt->mtu);
+		l_netlink_message_leave_nested(nlm);
+	}
+
+	if (rt->preference)
+		l_netlink_message_append_u8(nlm, RTA_PREF, rt->preference);
+
+	if (rt->expiry_time > now)
+		l_netlink_message_append_u32(nlm, RTA_EXPIRES,
+					l_time_to_secs(rt->expiry_time - now));
+
+	return nlm;
 }

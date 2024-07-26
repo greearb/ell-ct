@@ -28,3 +28,7 @@ struct l_rtnl_route {
 	uint32_t priority;
 	uint8_t preference;
 };
+
+struct l_netlink_message *rtnl_message_from_route(uint16_t type, uint16_t flags,
+						int ifindex,
+						const struct l_rtnl_route *rt);
