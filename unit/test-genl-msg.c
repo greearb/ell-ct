@@ -134,7 +134,7 @@ static void build_set_station_netlink(const void *data)
 	struct l_netlink_message *m;
 	struct genlmsghdr genlhdr = { .cmd = 18, .version = 0, .reserved = 0 };
 
-	m = l_netlink_message_new(0x17, NLM_F_REQUEST | NLM_F_ACK);
+	m = l_netlink_message_new(0x17, 0);
 	assert(m);
 
 	assert(!l_netlink_message_add_header(m, &genlhdr, sizeof(genlhdr)));
@@ -153,6 +153,7 @@ static void build_set_station_netlink(const void *data)
 				sizeof(set_station_request), do_debug, "[MSG] ");
 	}
 
+	m->hdr->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
 	assert(m->hdr->nlmsg_len == sizeof(set_station_request));
 	assert(!memcmp(m->data, set_station_request,
 					sizeof(set_station_request)));
@@ -292,7 +293,7 @@ static void build_set_rekey_offload_netlink(const void *data)
 	struct l_netlink_message *m;
 	struct genlmsghdr genlhdr = { .cmd = 79, .version = 0, .reserved = 0 };
 
-	m = l_netlink_message_new(0x1b, NLM_F_REQUEST | NLM_F_ACK);
+	m = l_netlink_message_new(0x1b, 0);
 	assert(m);
 
 	assert(!l_netlink_message_add_header(m, &genlhdr, sizeof(genlhdr)));
@@ -315,6 +316,7 @@ static void build_set_rekey_offload_netlink(const void *data)
 				do_debug, "[MSG] ");
 	}
 
+	m->hdr->nlmsg_flags = NLM_F_REQUEST | NLM_F_ACK;
 	assert(m->hdr->nlmsg_len == sizeof(set_rekey_offload_request));
 	assert(!memcmp(m->data, set_rekey_offload_request,
 					sizeof(set_rekey_offload_request)));

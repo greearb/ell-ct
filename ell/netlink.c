@@ -751,6 +751,9 @@ LIB_EXPORT struct l_netlink_message *l_netlink_message_new_sized(uint16_t type,
 {
 	struct l_netlink_message *message;
 
+	if (flags & 0xff)
+		return NULL;
+
 	message = l_new(struct l_netlink_message, 1);
 
 	message->size = initial_len + NLMSG_HDRLEN;
