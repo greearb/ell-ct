@@ -34,23 +34,6 @@
 
 static struct l_netlink *rtnl;
 
-struct l_rtnl_address {
-	uint8_t family;
-	uint8_t prefix_len;
-	uint8_t scope;
-	union {
-		struct in6_addr in6_addr;
-		struct in_addr in_addr;
-	};
-	struct in_addr broadcast;
-	char label[IFNAMSIZ];
-	uint32_t preferred_lifetime;
-	uint32_t valid_lifetime;
-	uint64_t preferred_expiry_time;
-	uint64_t valid_expiry_time;
-	uint32_t flags;
-};
-
 static inline int address_to_string(int family, const struct in_addr *v4,
 					const struct in6_addr *v6,
 					char *out_address)
@@ -1642,5 +1625,61 @@ struct l_netlink_message *rtnl_message_from_route(uint16_t type, uint16_t flags,
 		l_netlink_message_append_u32(nlm, RTA_EXPIRES,
 					l_time_to_secs(rt->expiry_time - now));
 
+	return nlm;
+}
+
+struct l_netlink_message *rtnl_message_from_address(uint16_t type,
+					uint16_t flags, int ifindex,
+					const struct l_rtnl_address *addr)
+{
+	struct l_netlink_message *nlm = l_netlink_message_new(type, flags);
+	struct ifaddrmsg ifa;
+	uint64_t now = l_time_now();
+
+	memset(&ifa, 0, sizeof(ifa));
+	ifa.ifa_index = ifindex;
+	ifa.ifa_family = addr->family;
+	ifa.ifa_scope = addr->scope;
+	ifa.ifa_prefixlen = addr->prefix_len;
+	/* Kernel ignores legacy flags in IFA_FLAGS, so set them here */
+	ifa.ifa_flags = addr->flags & 0xff;
+
+	l_netlink_message_add_header(nlm, &ifa, sizeof(ifa));
+
+	if (addr->family == AF_INET) {
+		l_netlink_message_append(nlm, IFA_LOCAL, &addr->in_addr,
+						sizeof(struct in_addr));
+		l_netlink_message_append(nlm, IFA_BROADCAST, &addr->broadcast,
+						sizeof(struct in_addr));
+	} else
+		l_netlink_message_append(nlm, IFA_LOCAL, &addr->in6_addr,
+						sizeof(struct in6_addr));
+
+	/* Address & Prefix length are enough to perform deletions */
+	if (type == RTM_DELADDR)
+		goto done;
+
+	if (addr->flags & 0xffffff00)
+		l_netlink_message_append_u32(nlm, IFA_FLAGS,
+						addr->flags & 0xffffff00);
+
+	if (addr->label[0])
+		l_netlink_message_append(nlm, IFA_LABEL,
+					addr->label, strlen(addr->label) + 1);
+
+	if (addr->preferred_expiry_time > now ||
+			addr->valid_expiry_time > now) {
+		struct ifa_cacheinfo cinfo;
+
+		memset(&cinfo, 0, sizeof(cinfo));
+		cinfo.ifa_prefered = addr->preferred_expiry_time > now ?
+			l_time_to_secs(addr->preferred_expiry_time - now) : 0;
+		cinfo.ifa_valid =  addr->valid_expiry_time > now ?
+			l_time_to_secs(addr->valid_expiry_time - now) : 0;
+
+		l_netlink_message_append(nlm, IFA_CACHEINFO,
+						&cinfo, sizeof(cinfo));
+	}
+done:
 	return nlm;
 }
