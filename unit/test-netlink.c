@@ -66,7 +66,10 @@ static void link_notification(uint16_t type, void const * data,
 int main(int argc, char *argv[])
 {
 	struct l_netlink *netlink;
-	struct ifinfomsg msg;
+	struct ifinfomsg ifi;
+	struct l_netlink_message *nlm =
+			l_netlink_message_new_sized(RTM_GETLINK,
+							NLM_F_DUMP, sizeof(ifi));
 	unsigned int link_id;
 
 	if (!l_main_init())
@@ -78,10 +81,10 @@ int main(int argc, char *argv[])
 
 	l_netlink_set_debug(netlink, do_debug, "[NETLINK] ", NULL);
 
-	memset(&msg, 0, sizeof(msg));
+	memset(&ifi, 0, sizeof(ifi));
+	l_netlink_message_add_header(nlm, &ifi, sizeof(ifi));
 
-	l_netlink_send(netlink, RTM_GETLINK, NLM_F_DUMP, &msg, sizeof(msg),
-						getlink_callback, NULL, NULL);
+	l_netlink_send(netlink, nlm, getlink_callback, NULL, NULL);
 
 	link_id = l_netlink_register(netlink, RTNLGRP_LINK,
 					link_notification, NULL, NULL);

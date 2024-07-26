@@ -641,63 +641,6 @@ LIB_EXPORT bool l_rtnl_route_set_scope(struct l_rtnl_route *rt, uint8_t scope)
 	return true;
 }
 
-static size_t rta_add_u8(void *rta_buf, unsigned short type, uint8_t value)
-{
-	struct rtattr *rta = rta_buf;
-
-	rta->rta_len = RTA_LENGTH(sizeof(uint8_t));
-	rta->rta_type = type;
-	*((uint8_t *) RTA_DATA(rta)) = value;
-
-	return RTA_SPACE(sizeof(uint8_t));
-}
-
-static size_t rta_add_u32(void *rta_buf, unsigned short type, uint32_t value)
-{
-	struct rtattr *rta = rta_buf;
-
-	rta->rta_len = RTA_LENGTH(sizeof(uint32_t));
-	rta->rta_type = type;
-	*((uint32_t *) RTA_DATA(rta)) = value;
-
-	return RTA_SPACE(sizeof(uint32_t));
-}
-
-static size_t rta_add_data(void *rta_buf, unsigned short type, const void *data,
-								size_t data_len)
-{
-	struct rtattr *rta = rta_buf;
-
-	rta->rta_len = RTA_LENGTH(data_len);
-	rta->rta_type = type;
-	memcpy(RTA_DATA(rta), data, data_len);
-
-	return RTA_SPACE(data_len);
-}
-
-static size_t rta_add_address(void *rta_buf, unsigned short type,
-				uint8_t family,
-				const struct in6_addr *v6,
-				const struct in_addr *v4)
-{
-	struct rtattr *rta = rta_buf;
-
-	rta->rta_type = type;
-
-	switch (family) {
-	case AF_INET6:
-		rta->rta_len = RTA_LENGTH(sizeof(struct in6_addr));
-		memcpy(RTA_DATA(rta), v6, sizeof(struct in6_addr));
-		return RTA_SPACE(sizeof(struct in6_addr));
-	case AF_INET:
-		rta->rta_len = RTA_LENGTH(sizeof(struct in_addr));
-		memcpy(RTA_DATA(rta), v4, sizeof(struct in_addr));
-		return RTA_SPACE(sizeof(struct in_addr));
-	}
-
-	return 0;
-}
-
 static int append_address(struct l_netlink_message *nlm, uint16_t type,
 				uint8_t family,
 				const struct in6_addr *v6,
@@ -786,31 +729,18 @@ LIB_EXPORT uint32_t l_rtnl_set_linkmode_and_operstate(struct l_netlink *rtnl,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	struct ifinfomsg *rtmmsg;
-	void *rta_buf;
-	size_t bufsize;
-	uint32_t id;
+	struct l_netlink_message *nlm = l_netlink_message_new(RTM_SETLINK, 0);
+	struct ifinfomsg ifi;
 
-	bufsize = NLMSG_ALIGN(sizeof(struct ifinfomsg)) +
-		RTA_SPACE(sizeof(uint8_t)) + RTA_SPACE(sizeof(uint8_t));
+	memset(&ifi, 0, sizeof(ifi));
+	ifi.ifi_family = AF_UNSPEC;
+	ifi.ifi_index = ifindex;
 
-	rtmmsg = l_malloc(bufsize);
-	memset(rtmmsg, 0, bufsize);
+	l_netlink_message_add_header(nlm, &ifi, sizeof(ifi));
+	l_netlink_message_append_u8(nlm, IFLA_LINKMODE, linkmode);
+	l_netlink_message_append_u8(nlm, IFLA_OPERSTATE, operstate);
 
-	rtmmsg->ifi_family = AF_UNSPEC;
-	rtmmsg->ifi_index = ifindex;
-
-	rta_buf = (void *) rtmmsg + NLMSG_ALIGN(sizeof(struct ifinfomsg));
-
-	rta_buf += rta_add_u8(rta_buf, IFLA_LINKMODE, linkmode);
-	rta_buf += rta_add_u8(rta_buf, IFLA_OPERSTATE, operstate);
-
-	id = l_netlink_send(rtnl, RTM_SETLINK, 0, rtmmsg,
-					rta_buf - (void *) rtmmsg,
-					cb, user_data, destroy);
-	l_free(rtmmsg);
-
-	return id;
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_set_mac(struct l_netlink *rtnl, int ifindex,
@@ -820,34 +750,22 @@ LIB_EXPORT uint32_t l_rtnl_set_mac(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	struct ifinfomsg *rtmmsg;
-	void *rta_buf;
-	size_t bufsize;
-	uint32_t id;
+	struct l_netlink_message *nlm = l_netlink_message_new(RTM_SETLINK, 0);
+	struct ifinfomsg ifi;
 
-	bufsize = NLMSG_ALIGN(sizeof(struct ifinfomsg)) + RTA_SPACE(6);
-
-	rtmmsg = l_malloc(bufsize);
-	memset(rtmmsg, 0, bufsize);
-
-	rtmmsg->ifi_family = AF_UNSPEC;
-	rtmmsg->ifi_index = ifindex;
+	memset(&ifi, 0, sizeof(ifi));
+	ifi.ifi_family = AF_UNSPEC;
+	ifi.ifi_index = ifindex;
 
 	if (power_up) {
-		rtmmsg->ifi_change = IFF_UP;
-		rtmmsg->ifi_flags = IFF_UP;
+		ifi.ifi_change = IFF_UP;
+		ifi.ifi_flags = IFF_UP;
 	}
 
-	rta_buf = (void *) rtmmsg + NLMSG_ALIGN(sizeof(struct ifinfomsg));
+	l_netlink_message_add_header(nlm, &ifi, sizeof(ifi));
+	l_netlink_message_append_mac(nlm, IFLA_ADDRESS, addr);
 
-	rta_buf += rta_add_data(rta_buf, IFLA_ADDRESS, (void *) addr, 6);
-
-	id = l_netlink_send(rtnl, RTM_SETLINK, 0, rtmmsg,
-					rta_buf - (void *) rtmmsg,
-					cb, user_data, destroy);
-	l_free(rtmmsg);
-
-	return id;
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_set_powered(struct l_netlink *rtnl, int ifindex,
@@ -855,25 +773,18 @@ LIB_EXPORT uint32_t l_rtnl_set_powered(struct l_netlink *rtnl, int ifindex,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy)
 {
-	struct ifinfomsg *rtmmsg;
-	size_t bufsize;
-	uint32_t id;
+	struct l_netlink_message *nlm = l_netlink_message_new(RTM_SETLINK, 0);
+	struct ifinfomsg ifi;
 
-	bufsize = NLMSG_ALIGN(sizeof(struct ifinfomsg));
+	memset(&ifi, 0, sizeof(ifi));
+	ifi.ifi_family = AF_UNSPEC;
+	ifi.ifi_index = ifindex;
+	ifi.ifi_change = IFF_UP;
+	ifi.ifi_flags = powered ? IFF_UP : 0;
 
-	rtmmsg = l_malloc(bufsize);
-	memset(rtmmsg, 0, bufsize);
+	l_netlink_message_add_header(nlm, &ifi, sizeof(ifi));
 
-	rtmmsg->ifi_family = AF_UNSPEC;
-	rtmmsg->ifi_index = ifindex;
-	rtmmsg->ifi_change = IFF_UP;
-	rtmmsg->ifi_flags = powered ? IFF_UP : 0;
-
-	id = l_netlink_send(rtnl, RTM_SETLINK, 0, rtmmsg, bufsize,
-					cb, user_data, destroy);
-	l_free(rtmmsg);
-
-	return id;
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
@@ -919,21 +830,17 @@ LIB_EXPORT uint32_t l_rtnl_ifaddr4_dump(struct l_netlink *rtnl,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	struct ifaddrmsg *rtmmsg;
-	uint32_t id;
+	struct ifaddrmsg ifa;
+	struct l_netlink_message *nlm =
+		l_netlink_message_new_sized(RTM_GETADDR,
+						NLM_F_DUMP, sizeof(ifa));
 
-	rtmmsg = l_malloc(sizeof(struct ifaddrmsg));
-	memset(rtmmsg, 0, sizeof(struct ifaddrmsg));
+	memset(&ifa, 0, sizeof(ifa));
+	ifa.ifa_family = AF_INET;
 
-	rtmmsg->ifa_family = AF_INET;
+	l_netlink_message_add_header(nlm, &ifa, sizeof(ifa));
 
-	id = l_netlink_send(rtnl, RTM_GETADDR, NLM_F_DUMP, rtmmsg,
-				sizeof(struct ifaddrmsg), cb, user_data,
-				destroy);
-
-	l_free(rtmmsg);
-
-	return id;
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_ifaddr4_add(struct l_netlink *rtnl, int ifindex,
@@ -984,14 +891,17 @@ LIB_EXPORT uint32_t l_rtnl_route4_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy)
 {
-	struct rtmsg rtmsg;
+	struct rtmsg rtm;
+	struct l_netlink_message *nlm =
+		l_netlink_message_new_sized(RTM_GETROUTE,
+						NLM_F_DUMP, sizeof(rtm));
 
-	memset(&rtmsg, 0, sizeof(struct rtmsg));
-	rtmsg.rtm_family = AF_INET;
+	memset(&rtm, 0, sizeof(rtm));
+	rtm.rtm_family = AF_INET;
 
-	return l_netlink_send(rtnl, RTM_GETROUTE, NLM_F_DUMP, &rtmsg,
-					sizeof(struct rtmsg), cb, user_data,
-					destroy);
+	l_netlink_message_add_header(nlm, &rtm, sizeof(rtm));
+
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_route4_add_connected(struct l_netlink *rtnl,
@@ -1075,21 +985,17 @@ LIB_EXPORT uint32_t l_rtnl_ifaddr6_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy)
 {
-	struct ifaddrmsg *rtmmsg;
-	uint32_t id;
+	struct ifaddrmsg ifa;
+	struct l_netlink_message *nlm =
+		l_netlink_message_new_sized(RTM_GETADDR,
+						NLM_F_DUMP, sizeof(ifa));
 
-	rtmmsg = l_malloc(sizeof(struct ifaddrmsg));
-	memset(rtmmsg, 0, sizeof(struct ifaddrmsg));
+	memset(&ifa, 0, sizeof(ifa));
+	ifa.ifa_family = AF_INET6;
 
-	rtmmsg->ifa_family = AF_INET6;
+	l_netlink_message_add_header(nlm, &ifa, sizeof(ifa));
 
-	id = l_netlink_send(rtnl, RTM_GETADDR, NLM_F_DUMP, rtmmsg,
-				sizeof(struct ifaddrmsg), cb, user_data,
-				destroy);
-
-	l_free(rtmmsg);
-
-	return id;
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_ifaddr6_add(struct l_netlink *rtnl, int ifindex,
@@ -1131,14 +1037,17 @@ LIB_EXPORT uint32_t l_rtnl_route6_dump(struct l_netlink *rtnl,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy)
 {
-	struct rtmsg rtmsg;
+	struct rtmsg rtm;
+	struct l_netlink_message *nlm =
+		l_netlink_message_new_sized(RTM_GETROUTE,
+						NLM_F_DUMP, sizeof(rtm));
 
-	memset(&rtmsg, 0, sizeof(struct rtmsg));
-	rtmsg.rtm_family = AF_INET6;
+	memset(&rtm, 0, sizeof(rtm));
+	rtm.rtm_family = AF_INET6;
 
-	return l_netlink_send(rtnl, RTM_GETROUTE, NLM_F_DUMP, &rtmsg,
-					sizeof(struct rtmsg), cb, user_data,
-					destroy);
+	l_netlink_message_add_header(nlm, &rtm, sizeof(rtm));
+
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_route6_add_gateway(struct l_netlink *rtnl,
@@ -1185,84 +1094,6 @@ LIB_EXPORT uint32_t l_rtnl_route6_delete_gateway(struct l_netlink *rtnl,
 	r = l_rtnl_route_delete(rtnl, ifindex, rt, cb, user_data, destroy);
 	l_rtnl_route_free(rt);
 	return r;
-}
-
-static uint32_t _rtnl_ifaddr_change(struct l_netlink *rtnl, uint16_t nlmsg_type,
-					int ifindex,
-					const struct l_rtnl_address *addr,
-					l_netlink_command_func_t cb,
-					void *user_data,
-					l_netlink_destroy_func_t destroy)
-{
-	struct ifaddrmsg *ifamsg;
-	void *buf;
-	size_t bufsize;
-	uint32_t id;
-	int flags = 0;
-	uint64_t now = l_time_now();
-
-	if  (nlmsg_type == RTM_NEWADDR)
-		flags = NLM_F_CREATE | NLM_F_REPLACE;
-
-	bufsize = NLMSG_ALIGN(sizeof(struct ifaddrmsg)) +
-					RTA_SPACE(sizeof(struct in6_addr)) +
-					RTA_SPACE(sizeof(struct in_addr)) +
-					RTA_SPACE(sizeof(uint32_t)) +
-					RTA_SPACE(IFNAMSIZ) +
-					RTA_SPACE(sizeof(struct ifa_cacheinfo));
-
-	ifamsg = l_malloc(bufsize);
-	memset(ifamsg, 0, bufsize);
-
-	ifamsg->ifa_index = ifindex;
-	ifamsg->ifa_family = addr->family;
-	ifamsg->ifa_scope = addr->scope;
-	ifamsg->ifa_prefixlen = addr->prefix_len;
-	/* Kernel ignores legacy flags in IFA_FLAGS, so set them here */
-	ifamsg->ifa_flags = addr->flags & 0xff;
-
-	buf = (void *) ifamsg + NLMSG_ALIGN(sizeof(struct ifaddrmsg));
-
-	if (addr->family == AF_INET) {
-		buf += rta_add_data(buf, IFA_LOCAL, &addr->in_addr,
-						sizeof(struct in_addr));
-		buf += rta_add_data(buf, IFA_BROADCAST, &addr->broadcast,
-						sizeof(struct in_addr));
-	} else
-		buf += rta_add_data(buf, IFA_LOCAL, &addr->in6_addr,
-						sizeof(struct in6_addr));
-
-	/* Address & Prefix length are enough to perform deletions */
-	if (nlmsg_type == RTM_DELADDR)
-		goto done;
-
-	if (addr->flags & 0xffffff00)
-		buf += rta_add_u32(buf, IFA_FLAGS, addr->flags & 0xffffff00);
-
-	if (addr->label[0])
-		buf += rta_add_data(buf, IFA_LABEL,
-					addr->label, strlen(addr->label) + 1);
-
-	if (addr->preferred_expiry_time > now ||
-			addr->valid_expiry_time > now) {
-		struct ifa_cacheinfo cinfo;
-
-		memset(&cinfo, 0, sizeof(cinfo));
-		cinfo.ifa_prefered = addr->preferred_expiry_time > now ?
-			l_time_to_secs(addr->preferred_expiry_time - now) : 0;
-		cinfo.ifa_valid =  addr->valid_expiry_time > now ?
-			l_time_to_secs(addr->valid_expiry_time - now) : 0;
-
-		buf += rta_add_data(buf, IFA_CACHEINFO, &cinfo, sizeof(cinfo));
-	}
-
-done:
-	id = l_netlink_send(rtnl, nlmsg_type, flags,
-				ifamsg, buf - (void *) ifamsg,
-				cb, user_data, destroy);
-	l_free(ifamsg);
-
-	return id;
 }
 
 LIB_EXPORT struct l_rtnl_address *l_rtnl_ifaddr_extract(
@@ -1324,8 +1155,12 @@ LIB_EXPORT uint32_t l_rtnl_ifaddr_add(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	return _rtnl_ifaddr_change(rtnl, RTM_NEWADDR, ifindex, addr,
-						cb, user_data, destroy);
+	struct l_netlink_message *nlm =
+		rtnl_message_from_address(RTM_NEWADDR,
+						NLM_F_CREATE | NLM_F_REPLACE,
+						ifindex, addr);
+
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_ifaddr_delete(struct l_netlink *rtnl, int ifindex,
@@ -1334,84 +1169,10 @@ LIB_EXPORT uint32_t l_rtnl_ifaddr_delete(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	return _rtnl_ifaddr_change(rtnl, RTM_DELADDR, ifindex, addr,
-						cb, user_data, destroy);
-}
+	struct l_netlink_message *nlm =
+		rtnl_message_from_address(RTM_DELADDR, 0, ifindex, addr);
 
-static uint32_t _rtnl_route_change(struct l_netlink *rtnl,
-					uint16_t nlmsg_type, int ifindex,
-					const struct l_rtnl_route *rt,
-					l_netlink_command_func_t cb,
-					void *user_data,
-					l_netlink_destroy_func_t destroy)
-{
-	L_AUTO_FREE_VAR(struct rtmsg *, rtmmsg) = NULL;
-	size_t bufsize;
-	void *rta_buf;
-	uint16_t flags;
-	uint64_t now = l_time_now();
-
-	bufsize = NLMSG_ALIGN(sizeof(struct rtmsg)) +
-			RTA_SPACE(sizeof(uint32_t)) +        /* RTA_OIF */
-			RTA_SPACE(sizeof(uint32_t)) +        /* RTA_PRIORITY */
-			RTA_SPACE(sizeof(struct in6_addr)) + /* RTA_GATEWAY */
-			RTA_SPACE(sizeof(struct in6_addr)) + /* RTA_DST */
-			RTA_SPACE(sizeof(struct in6_addr)) + /* RTA_PREFSRC */
-			256 +                                /* RTA_METRICS */
-			RTA_SPACE(sizeof(uint8_t)) +         /* RTA_PREF */
-			RTA_SPACE(sizeof(uint32_t));         /* RTA_EXPIRES */
-
-	rtmmsg = l_malloc(bufsize);
-	memset(rtmmsg, 0, bufsize);
-
-	rtmmsg->rtm_family = rt->family;
-	rtmmsg->rtm_table = RT_TABLE_MAIN;
-	rtmmsg->rtm_protocol = rt->protocol;
-	rtmmsg->rtm_type = RTN_UNICAST;
-	rtmmsg->rtm_scope = rt->scope;
-
-	flags = NLM_F_CREATE | NLM_F_REPLACE;
-
-	rta_buf = (void *) rtmmsg + NLMSG_ALIGN(sizeof(struct rtmsg));
-	rta_buf += rta_add_u32(rta_buf, RTA_OIF, ifindex);
-
-	if (rt->priority)
-		rta_buf += rta_add_u32(rta_buf, RTA_PRIORITY,
-						rt->priority + ifindex);
-
-	if (!address_is_null(rt->family, &rt->gw.in_addr, &rt->gw.in6_addr))
-		rta_buf += rta_add_address(rta_buf, RTA_GATEWAY, rt->family,
-					&rt->gw.in6_addr, &rt->gw.in_addr);
-
-	if (rt->dst_prefix_len) {
-		rtmmsg->rtm_dst_len = rt->dst_prefix_len;
-		rta_buf += rta_add_address(rta_buf, RTA_DST, rt->family,
-					&rt->dst.in6_addr, &rt->dst.in_addr);
-	}
-
-	if (!address_is_null(rt->family, &rt->prefsrc.in_addr,
-						&rt->prefsrc.in6_addr))
-		rta_buf += rta_add_address(rta_buf, RTA_PREFSRC, rt->family,
-						&rt->prefsrc.in6_addr,
-						&rt->prefsrc.in_addr);
-
-	if (rt->mtu) {
-		uint8_t buf[256];
-		size_t written = rta_add_u32(buf, RTAX_MTU, rt->mtu);
-
-		rta_buf += rta_add_data(rta_buf, RTA_METRICS, buf, written);
-	}
-
-	if (rt->preference)
-		rta_buf += rta_add_u8(rta_buf, RTA_PREF, rt->preference);
-
-	if (rt->expiry_time > now)
-		rta_buf += rta_add_u32(rta_buf, RTA_EXPIRES,
-					l_time_to_secs(rt->expiry_time - now));
-
-	return l_netlink_send(rtnl, nlmsg_type, flags, rtmmsg,
-				rta_buf - (void *) rtmmsg, cb, user_data,
-								destroy);
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_route_add(struct l_netlink *rtnl, int ifindex,
@@ -1420,8 +1181,12 @@ LIB_EXPORT uint32_t l_rtnl_route_add(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	return _rtnl_route_change(rtnl, RTM_NEWROUTE, ifindex, rt,
-						cb, user_data, destroy);
+	struct l_netlink_message *nlm =
+		rtnl_message_from_route(RTM_NEWROUTE,
+						NLM_F_CREATE | NLM_F_REPLACE,
+						ifindex, rt);
+
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 LIB_EXPORT uint32_t l_rtnl_route_delete(struct l_netlink *rtnl, int ifindex,
@@ -1430,8 +1195,10 @@ LIB_EXPORT uint32_t l_rtnl_route_delete(struct l_netlink *rtnl, int ifindex,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	return _rtnl_route_change(rtnl, RTM_DELROUTE, ifindex, rt,
-						cb, user_data, destroy);
+	struct l_netlink_message *nlm =
+		rtnl_message_from_route(RTM_DELROUTE, 0, ifindex, rt);
+
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 struct rtnl_neighbor_get_data {
@@ -1500,25 +1267,21 @@ LIB_EXPORT uint32_t l_rtnl_neighbor_get_hwaddr(struct l_netlink *rtnl,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	size_t bufsize = NLMSG_ALIGN(sizeof(struct ndmsg)) +
-			RTA_SPACE(16); /* NDA_DST */
-	uint8_t buf[bufsize];
-	struct ndmsg *ndmsg = (struct ndmsg *) buf;
-	void *rta_buf = (void *) ndmsg + NLMSG_ALIGN(sizeof(struct ndmsg));
+	struct ndmsg ndm;
+	struct l_netlink_message *nlm = l_netlink_message_new(RTM_GETNEIGH, 0);
 	__auto_type cb_data = struct_alloc(rtnl_neighbor_get_data,
 						cb, user_data, destroy);
-	uint32_t ret;
+	int ret;
 
-	memset(buf, 0, bufsize);
-	ndmsg->ndm_family = family;
-	ndmsg->ndm_ifindex = ifindex;
-	ndmsg->ndm_flags = 0;
+	memset(&ndm, 0, sizeof(ndm));
+	ndm.ndm_family = family;
+	ndm.ndm_ifindex = ifindex;
+	ndm.ndm_flags = 0;
 
-	rta_buf += rta_add_address(rta_buf, NDA_DST, family, ip, ip);
+	l_netlink_message_add_header(nlm, &ndm, sizeof(ndm));
+	append_address(nlm, NDA_DST, family, ip, ip);
 
-	ret = l_netlink_send(rtnl, RTM_GETNEIGH, 0, ndmsg,
-				rta_buf - (void *) ndmsg,
-				rtnl_neighbor_get_cb, cb_data,
+	ret = l_netlink_send(rtnl, nlm, rtnl_neighbor_get_cb, cb_data,
 				rtnl_neighbor_get_destroy_cb);
 	if (ret)
 		return ret;
@@ -1536,25 +1299,21 @@ LIB_EXPORT uint32_t l_rtnl_neighbor_set_hwaddr(struct l_netlink *rtnl,
 					void *user_data,
 					l_netlink_destroy_func_t destroy)
 {
-	size_t bufsize = NLMSG_ALIGN(sizeof(struct ndmsg)) +
-			RTA_SPACE(16) +        /* NDA_DST */
-			RTA_SPACE(hwaddr_len); /* NDA_LLADDR */
-	uint8_t buf[bufsize];
-	struct ndmsg *ndmsg = (struct ndmsg *) buf;
-	void *rta_buf = (void *) ndmsg + NLMSG_ALIGN(sizeof(struct ndmsg));
+	struct ndmsg ndm;
+	struct l_netlink_message *nlm =
+			l_netlink_message_new(RTM_NEWNEIGH,
+						NLM_F_CREATE | NLM_F_REPLACE);
+	memset(&ndm, 0, sizeof(ndm));
+	ndm.ndm_family = family;
+	ndm.ndm_ifindex = ifindex;
+	ndm.ndm_flags = 0;
+	ndm.ndm_state = NUD_REACHABLE;
 
-	memset(buf, 0, bufsize);
-	ndmsg->ndm_family = family;
-	ndmsg->ndm_ifindex = ifindex;
-	ndmsg->ndm_flags = 0;
-	ndmsg->ndm_state = NUD_REACHABLE;
+	l_netlink_message_add_header(nlm, &ndm, sizeof(ndm));
+	append_address(nlm, NDA_DST, family, ip, ip);
+	l_netlink_message_append(nlm, NDA_LLADDR, hwaddr, hwaddr_len);
 
-	rta_buf += rta_add_address(rta_buf, NDA_DST, family, ip, ip);
-	rta_buf += rta_add_data(rta_buf, NDA_LLADDR, hwaddr, hwaddr_len);
-
-	return l_netlink_send(rtnl, RTM_NEWNEIGH, NLM_F_CREATE | NLM_F_REPLACE,
-				ndmsg, rta_buf - (void *) ndmsg,
-				cb, user_data, destroy);
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
 __attribute__((destructor(32000))) static void free_rtnl()

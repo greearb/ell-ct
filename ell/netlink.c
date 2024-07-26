@@ -24,11 +24,10 @@
 
 struct command {
 	unsigned int id;
-	uint32_t seq;
-	uint32_t len;
 	l_netlink_command_func_t handler;
 	l_netlink_destroy_func_t destroy;
 	void *user_data;
+	struct l_netlink_message *message;
 };
 
 struct notify {
@@ -61,6 +60,7 @@ static void destroy_command(void *data)
 	if (command->destroy)
 		command->destroy(command->user_data);
 
+	l_netlink_message_unref(command->message);
 	l_free(command);
 }
 
@@ -85,8 +85,8 @@ static bool can_write_data(struct l_io *io, void *user_data)
 {
 	struct l_netlink *netlink = user_data;
 	struct command *command;
+	struct nlmsghdr *hdr;
 	struct sockaddr_nl addr;
-	const void *data;
 	ssize_t written;
 	int sk;
 
@@ -94,28 +94,27 @@ static bool can_write_data(struct l_io *io, void *user_data)
 	if (!command)
 		return false;
 
+	hdr = command->message->hdr;
 	sk = l_io_get_fd(io);
 
 	memset(&addr, 0, sizeof(addr));
 	addr.nl_family = AF_NETLINK;
 	addr.nl_pid = 0;
 
-	data = ((void *) command) + NLMSG_ALIGN(sizeof(struct command));
-
-	written = sendto(sk, data, command->len, 0,
-				(struct sockaddr *) &addr, sizeof(addr));
-	if (written < 0 || (uint32_t) written != command->len) {
+	written = sendto(sk, hdr, hdr->nlmsg_len, 0,
+			(struct sockaddr *) &addr, sizeof(addr));
+	if (written < 0 || (uint32_t) written != hdr->nlmsg_len) {
 		l_hashmap_remove(netlink->command_lookup,
 					L_UINT_TO_PTR(command->id));
 		destroy_command(command);
 		return true;
 	}
 
-	l_util_hexdump(false, data, command->len,
+	l_util_hexdump(false, hdr, hdr->nlmsg_len,
 				netlink->debug_handler, netlink->debug_data);
 
 	l_hashmap_insert(netlink->command_pending,
-				L_UINT_TO_PTR(command->seq), command);
+				L_UINT_TO_PTR(hdr->nlmsg_seq), command);
 
 	return l_queue_length(netlink->command_queue) > 0;
 }
@@ -399,70 +398,55 @@ LIB_EXPORT void l_netlink_destroy(struct l_netlink *netlink)
 }
 
 LIB_EXPORT unsigned int l_netlink_send(struct l_netlink *netlink,
-			uint16_t type, uint16_t flags, const void *data,
-			uint32_t len, l_netlink_command_func_t function,
-			void *user_data, l_netlink_destroy_func_t destroy)
+					struct l_netlink_message *message,
+					l_netlink_command_func_t function,
+					void *user_data,
+					l_netlink_destroy_func_t destroy)
 {
 	struct command *command;
+	uint16_t extra_flags = NLM_F_REQUEST;
 	struct nlmsghdr *nlmsg;
-	size_t size;
 
 	if (unlikely(!netlink))
 		return 0;
 
-	if (flags & 0xff)
+	if (unlikely(message->nest_level))
 		return 0;
 
 	if (function)
-		flags |= NLM_F_ACK;
+		extra_flags |= NLM_F_ACK;
 
-	size = NLMSG_ALIGN(sizeof(struct command)) +
-					NLMSG_HDRLEN + NLMSG_ALIGN(len);
+	command = l_new(struct command, 1);
 
-	command = l_malloc(size);
+	if (!l_hashmap_insert(netlink->command_lookup,
+				L_UINT_TO_PTR(netlink->next_command_id),
+				command)) {
+		l_free(command);
+		return 0;
+	}
 
-	memset(command, 0, size);
 	command->handler = function;
 	command->destroy = destroy;
 	command->user_data = user_data;
+	command->id = netlink->next_command_id++;
+	command->message = message;
+	message->sealed = true;
 
-	command->id = netlink->next_command_id;
-
-	if (!l_hashmap_insert(netlink->command_lookup,
-					L_UINT_TO_PTR(command->id), command))
-		goto free_command;
-
-	command->seq = netlink->next_seq++;
-	command->len = NLMSG_HDRLEN + NLMSG_ALIGN(len);
-
-	nlmsg = ((void *) command) + NLMSG_ALIGN(sizeof(struct command));
-
-	nlmsg->nlmsg_len = command->len;
-	nlmsg->nlmsg_type = type;
-	nlmsg->nlmsg_flags = NLM_F_REQUEST | flags;
-	nlmsg->nlmsg_seq = command->seq;
+	nlmsg = message->hdr;
+	nlmsg->nlmsg_flags |= extra_flags;
+	nlmsg->nlmsg_seq = netlink->next_seq++;
 	nlmsg->nlmsg_pid = netlink->pid;
 
-	if (data && len > 0)
-		memcpy(((void *) nlmsg) + NLMSG_HDRLEN, data, len);
-
 	l_queue_push_tail(netlink->command_queue, command);
-
 	l_io_set_write_handler(netlink->io, can_write_data, netlink, NULL);
 
-	netlink->next_command_id++;
-
 	return command->id;
-
-free_command:
-	l_free(command);
-
-	return 0;
 }
 
 LIB_EXPORT bool l_netlink_cancel(struct l_netlink *netlink, unsigned int id)
 {
 	struct command *command;
+	struct nlmsghdr *hdr;
 
 	if (unlikely(!netlink || !id))
 		return false;
@@ -471,9 +455,11 @@ LIB_EXPORT bool l_netlink_cancel(struct l_netlink *netlink, unsigned int id)
 	if (!command)
 		return false;
 
+	hdr = command->message->hdr;
+
 	if (!l_queue_remove(netlink->command_queue, command)) {
 		l_hashmap_remove(netlink->command_pending,
-					L_UINT_TO_PTR(command->seq));
+					L_UINT_TO_PTR(hdr->nlmsg_seq));
 	}
 
 	destroy_command(command);
