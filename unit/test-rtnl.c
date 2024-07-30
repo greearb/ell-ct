@@ -279,6 +279,8 @@ static struct ifaddrmsg *build_ifaddrmsg(const struct l_rtnl_address *addr,
 	return ifamsg;
 }
 
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic ignored \"-Warray-bounds\"")
 static void test_address(const void *data)
 {
 	static const int ifindex = 3;
@@ -293,6 +295,7 @@ static void test_address(const void *data)
 	assert(messages_equal(nlm, ifamsg, ifamsg_len));
 	l_netlink_message_unref(nlm);
 }
+_Pragma("GCC diagnostic pop")
 
 static void signal_handler(uint32_t signo, void *user_data)
 {
