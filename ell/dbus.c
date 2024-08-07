@@ -1694,6 +1694,19 @@ LIB_EXPORT void *l_dbus_object_get_data(struct l_dbus *dbus, const char *object,
 							interface);
 }
 
+LIB_EXPORT bool l_dbus_object_set_data(struct l_dbus *dbus, const char *object,
+				const char *interface, void *user_data)
+{
+	if (unlikely(!dbus))
+		return false;
+
+	if (unlikely(!dbus->tree))
+		return false;
+
+	return _dbus_object_tree_set_interface_data(dbus->tree, object,
+							interface, user_data);
+}
+
 LIB_EXPORT bool l_dbus_object_manager_enable(struct l_dbus *dbus,
 						const char *root)
 {
