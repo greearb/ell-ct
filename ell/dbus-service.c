@@ -1568,23 +1568,48 @@ bool _dbus_object_tree_add_interface(struct _dbus_object_tree *tree,
 	return true;
 }
 
-void *_dbus_object_tree_get_interface_data(struct _dbus_object_tree *tree,
+static struct interface_instance *_dbus_object_tree_find_interface(
+						struct _dbus_object_tree *tree,
 						const char *path,
 						const char *interface)
 {
 	struct object_node *object;
-	struct interface_instance *instance;
 
 	object = l_hashmap_lookup(tree->objects, path);
 	if (!object)
 		return NULL;
 
-	instance = l_queue_find(object->instances, match_interface_instance,
-				(char *) interface);
+	return l_queue_find(object->instances, match_interface_instance,
+				interface);
+}
+
+void *_dbus_object_tree_get_interface_data(struct _dbus_object_tree *tree,
+						const char *path,
+						const char *interface)
+{
+	struct interface_instance *instance;
+
+	instance = _dbus_object_tree_find_interface(tree, path, interface);
 	if (!instance)
 		return NULL;
 
 	return instance->user_data;
+}
+
+bool _dbus_object_tree_set_interface_data(struct _dbus_object_tree *tree,
+						const char *path,
+						const char *interface,
+						void *user_data)
+{
+	struct interface_instance *instance;
+
+	instance = _dbus_object_tree_find_interface(tree, path, interface);
+	if (!instance)
+		return false;
+
+	instance->user_data = user_data;
+
+	return true;
 }
 
 static bool match_object_manager_path(const void *a, const void *b)
