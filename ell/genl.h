@@ -91,10 +91,20 @@ bool l_genl_msg_enter_nested(struct l_genl_msg *msg, uint16_t type);
 bool l_genl_msg_leave_nested(struct l_genl_msg *msg);
 
 bool l_genl_attr_init(struct l_genl_attr *attr, struct l_genl_msg *msg);
-bool l_genl_attr_next(struct l_genl_attr *attr, uint16_t *type,
-					uint16_t *len, const void **data);
-bool l_genl_attr_recurse(const struct l_genl_attr *attr,
-				struct l_genl_attr *nested);
+
+static inline bool l_genl_attr_next(struct l_genl_attr *attr, uint16_t *type,
+					uint16_t *len, const void **data)
+{
+	return l_netlink_attr_next((struct l_netlink_attr *) attr,
+					type, len, data) == 0;
+}
+
+static inline bool l_genl_attr_recurse(const struct l_genl_attr *attr,
+				struct l_genl_attr *nested)
+{
+	return l_netlink_attr_recurse((struct l_netlink_attr *) attr,
+					(struct l_netlink_attr *) nested) == 0;
+}
 
 bool l_genl_family_info_has_group(const struct l_genl_family_info *info,
 					const char *group);

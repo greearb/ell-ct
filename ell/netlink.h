@@ -119,6 +119,21 @@ static inline int l_netlink_message_append_mac(struct l_netlink_message *message
 	return l_netlink_message_append(message, type, mac, 6);
 }
 
+struct l_netlink_attr {
+	const struct nlattr *data;
+	uint32_t len;
+	const struct nlattr *next_data;
+	uint32_t next_len;
+};
+
+int l_netlink_attr_init(struct l_netlink_attr *attr, size_t header_len,
+					const void *data, uint32_t len);
+int l_netlink_attr_next(struct l_netlink_attr *attr,
+					uint16_t *type, uint16_t *len,
+					const void **data);
+int l_netlink_attr_recurse(const struct l_netlink_attr *iter,
+					struct l_netlink_attr *nested);
+
 #ifdef __cplusplus
 }
 #endif

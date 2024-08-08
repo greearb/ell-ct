@@ -1559,80 +1559,12 @@ LIB_EXPORT bool l_genl_msg_leave_nested(struct l_genl_msg *msg)
 LIB_EXPORT bool l_genl_attr_init(struct l_genl_attr *attr,
 						struct l_genl_msg *msg)
 {
-	const struct nlattr *nla;
-	uint32_t len;
-
-	if (unlikely(!attr) || unlikely(!msg))
+	if (unlikely(!msg) || unlikely(!msg->nlm))
 		return false;
 
-	if (!msg->nlm ||
-			msg->nlm->hdr->nlmsg_len < NLMSG_HDRLEN + GENL_HDRLEN)
-		return false;
-
-	nla = msg->nlm->data + NLMSG_HDRLEN + GENL_HDRLEN;
-	len = msg->nlm->hdr->nlmsg_len - NLMSG_HDRLEN - GENL_HDRLEN;
-
-	if (!NLA_OK(nla, len))
-		return false;
-
-	attr->data = NULL;
-	attr->len = 0;
-	attr->next_data = nla;
-	attr->next_len = len;
-
-	return true;
-}
-
-LIB_EXPORT bool l_genl_attr_next(struct l_genl_attr *attr,
-						uint16_t *type,
-						uint16_t *len,
-						const void **data)
-{
-	const struct nlattr *nla;
-
-	if (unlikely(!attr))
-		return false;
-
-	nla = attr->next_data;
-
-	if (!NLA_OK(nla, attr->next_len))
-		return false;
-
-	if (type)
-		*type = nla->nla_type & NLA_TYPE_MASK;
-
-	if (len)
-		*len = NLA_PAYLOAD(nla);
-
-	if (data)
-		*data = NLA_DATA(nla);
-
-	attr->data = attr->next_data;
-	attr->len = attr->next_len;
-
-	attr->next_data = NLA_NEXT(nla, attr->next_len);
-
-	return true;
-}
-
-LIB_EXPORT bool l_genl_attr_recurse(const struct l_genl_attr *attr,
-						struct l_genl_attr *nested)
-{
-	const struct nlattr *nla;
-
-	if (unlikely(!attr) || unlikely(!nested))
-		return false;
-
-	nla = attr->data;
-	if (!nla)
-		return false;
-
-	nested->data = NULL;
-	nested->len = 0;
-	nested->next_data = NLA_DATA(nla);
-	nested->next_len = NLA_PAYLOAD(nla);
-
-	return true;
+	return l_netlink_attr_init((struct l_netlink_attr *) attr,
+				NLMSG_HDRLEN + GENL_HDRLEN,
+				msg->nlm->data, msg->nlm->hdr->nlmsg_len) == 0;
 }
 
 /**

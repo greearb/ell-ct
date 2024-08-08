@@ -344,8 +344,6 @@ global:
 	l_genl_msg_enter_nested;
 	l_genl_msg_leave_nested;
 	l_genl_attr_init;
-	l_genl_attr_next;
-	l_genl_attr_recurse;
 	l_genl_family_info_can_send;
 	l_genl_family_info_can_dump;
 	l_genl_family_info_has_group;
@@ -445,6 +443,9 @@ global:
 	l_netlink_message_add_header;
 	l_netlink_message_enter_nested;
 	l_netlink_message_leave_nested;
+	l_netlink_attr_init;
+	l_netlink_attr_next;
+	l_netlink_attr_recurse;
 	/* path */
 	l_basename;
 	l_path_find;
