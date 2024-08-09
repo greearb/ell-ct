@@ -27,30 +27,33 @@ static void getlink_callback(int error, uint16_t type, const void *data,
 						uint32_t len, void *user_data)
 {
 	const struct ifinfomsg *ifi = data;
-	struct rtattr *rta;
-	int bytes;
+	struct l_netlink_attr attr;
 	char ifname[IF_NAMESIZE];
 	uint32_t index, flags;
+	uint16_t rta_type;
+	uint16_t rta_len;
+	const void *rta_data;
 
 	if (error)
 		goto done;
 
-	bytes = len - NLMSG_ALIGN(sizeof(struct ifinfomsg));
+	if (l_netlink_attr_init(&attr, sizeof(struct ifinfomsg), data, len) < 0)
+		goto done;
 
 	memset(ifname, 0, sizeof(ifname));
 
+	while (!l_netlink_attr_next(&attr, &rta_type, &rta_len, &rta_data)) {
+		if (rta_type != IFLA_IFNAME)
+			continue;
+
+		if (rta_len <= IF_NAMESIZE)
+			strcpy(ifname, rta_data);
+
+		break;
+	}
+
 	index = ifi->ifi_index;
 	flags = ifi->ifi_flags;
-
-	for (rta = IFLA_RTA(ifi); RTA_OK(rta, bytes);
-					rta = RTA_NEXT(rta, bytes)) {
-		switch (rta->rta_type) {
-		case IFLA_IFNAME:
-			if (RTA_PAYLOAD(rta) <= IF_NAMESIZE)
-				strcpy(ifname, RTA_DATA(rta));
-			break;
-		}
-	}
 
 	l_info("index=%d flags=0x%08x name=%s", index, flags, ifname);
 
