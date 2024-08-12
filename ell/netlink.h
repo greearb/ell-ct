@@ -10,6 +10,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -117,6 +118,14 @@ static inline int l_netlink_message_append_mac(struct l_netlink_message *message
 						const uint8_t mac[static 6])
 {
 	return l_netlink_message_append(message, type, mac, 6);
+}
+
+static inline int l_netlink_message_append_string(
+					struct l_netlink_message *message,
+					uint16_t type,
+					const char *str)
+{
+	return l_netlink_message_append(message, type, str, strlen(str) + 1);
 }
 
 struct l_netlink_attr {
