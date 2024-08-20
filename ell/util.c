@@ -760,6 +760,9 @@ static int safe_atou(const char *s, int base, unsigned int *out_u)
 
 LIB_EXPORT int l_safe_atou32(const char *s, uint32_t *out_u)
 {
+	if (unlikely(!s))
+		return -EINVAL;
+
 	if (!l_ascii_isdigit(s[0]))
 		return -EINVAL;
 
@@ -808,6 +811,9 @@ LIB_EXPORT int l_safe_atox16(const char *s, uint16_t *out_x)
 
 LIB_EXPORT int l_safe_atox32(const char *s, uint32_t *out_x)
 {
+	if (unlikely(!s))
+		return -EINVAL;
+
 	if (!l_ascii_isxdigit(s[0]))
 		return -EINVAL;
 
