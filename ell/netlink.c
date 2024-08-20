@@ -467,6 +467,24 @@ LIB_EXPORT bool l_netlink_cancel(struct l_netlink *netlink, unsigned int id)
 	return true;
 }
 
+LIB_EXPORT bool l_netlink_request_sent(struct l_netlink *netlink,
+							unsigned int id)
+{
+	struct command *command;
+	struct nlmsghdr *hdr;
+
+	if (unlikely(!netlink || !id))
+		return false;
+
+	command = l_hashmap_lookup(netlink->command_lookup, L_UINT_TO_PTR(id));
+	if (!command)
+		return false;
+
+	hdr = command->message->hdr;
+	return l_hashmap_lookup(netlink->command_pending,
+					L_UINT_TO_PTR(hdr->nlmsg_seq));
+}
+
 static bool add_membership(struct l_netlink *netlink, uint32_t group)
 {
 	int sk, value = group;

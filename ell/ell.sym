@@ -431,6 +431,7 @@ global:
 	l_netlink_destroy;
 	l_netlink_send;
 	l_netlink_cancel;
+	l_netlink_request_sent;
 	l_netlink_register;
 	l_netlink_unregister;
 	l_netlink_set_debug;

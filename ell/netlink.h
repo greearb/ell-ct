@@ -37,6 +37,7 @@ unsigned int l_netlink_send(struct l_netlink *netlink,
 				void *user_data,
 				l_netlink_destroy_func_t destroy);
 bool l_netlink_cancel(struct l_netlink *netlink, unsigned int id);
+bool l_netlink_request_sent(struct l_netlink *netlink, unsigned int id);
 
 unsigned int l_netlink_register(struct l_netlink *netlink,
 			uint32_t group, l_netlink_notify_func_t function,
