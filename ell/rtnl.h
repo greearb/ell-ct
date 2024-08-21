@@ -103,6 +103,10 @@ uint32_t l_rtnl_set_powered(struct l_netlink *rtnl, int ifindex, bool powered,
 				l_netlink_command_func_t cb, void *user_data,
 				l_netlink_destroy_func_t destroy);
 
+uint32_t l_rtnl_link_set_mtu(struct l_netlink *rtnl, int ifindex, uint32_t mtu,
+				l_netlink_command_func_t cb, void *user_data,
+				l_netlink_destroy_func_t destroy);
+
 void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 				char **label, char **ip, char **broadcast);
 uint32_t l_rtnl_ifaddr4_dump(struct l_netlink *rtnl, l_netlink_command_func_t cb,

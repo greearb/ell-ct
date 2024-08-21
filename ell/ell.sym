@@ -701,6 +701,7 @@ global:
 	l_rtnl_set_linkmode_and_operstate;
 	l_rtnl_set_mac;
 	l_rtnl_set_powered;
+	l_rtnl_link_set_mtu;
 	l_rtnl_ifaddr4_extract;
 	l_rtnl_ifaddr4_dump;
 	l_rtnl_ifaddr4_add;

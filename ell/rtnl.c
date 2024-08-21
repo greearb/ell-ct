@@ -787,6 +787,24 @@ LIB_EXPORT uint32_t l_rtnl_set_powered(struct l_netlink *rtnl, int ifindex,
 	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
 }
 
+LIB_EXPORT uint32_t l_rtnl_link_set_mtu(struct l_netlink *rtnl, int ifindex,
+				uint32_t mtu,
+				l_netlink_command_func_t cb, void *user_data,
+				l_netlink_destroy_func_t destroy)
+{
+	struct l_netlink_message *nlm = l_netlink_message_new(RTM_SETLINK, 0);
+	struct ifinfomsg ifi;
+
+	memset(&ifi, 0, sizeof(ifi));
+	ifi.ifi_family = AF_UNSPEC;
+	ifi.ifi_index = ifindex;
+
+	l_netlink_message_add_header(nlm, &ifi, sizeof(ifi));
+	l_netlink_message_append_u32(nlm, IFLA_MTU, mtu);
+
+	return l_netlink_send(rtnl, nlm, cb, user_data, destroy);
+}
+
 LIB_EXPORT void l_rtnl_ifaddr4_extract(const struct ifaddrmsg *ifa, int bytes,
 				char **label, char **ip, char **broadcast)
 {
