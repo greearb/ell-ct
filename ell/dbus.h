@@ -57,6 +57,7 @@ typedef void (*l_dbus_name_acquire_func_t) (struct l_dbus *dbus, bool success,
 
 struct l_dbus *l_dbus_new(const char *address);
 struct l_dbus *l_dbus_new_default(enum l_dbus_bus bus);
+struct l_dbus *l_dbus_new_private(int fd);
 void l_dbus_destroy(struct l_dbus *dbus);
 
 bool l_dbus_set_ready_handler(struct l_dbus *dbus, l_dbus_ready_func_t function,

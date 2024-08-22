@@ -92,6 +92,7 @@ struct l_dbus_classic {
 	struct l_dbus super;
 	void *auth_command;
 	enum auth_state auth_state;
+	bool skip_hello;
 	struct l_hashmap *match_strings;
 	int *fd_buf;
 	unsigned int num_fds;
@@ -411,6 +412,11 @@ static bool auth_write_handler(struct l_io *io, void *user_data)
 
 	if (classic->auth_state == SETUP_DONE) {
 		struct l_dbus_message *message;
+
+		if (classic->skip_hello) {
+			bus_ready(dbus);
+			return true;
+		}
 
 		l_io_set_read_handler(dbus->io, message_read_handler,
 							dbus, NULL);
@@ -1020,7 +1026,7 @@ static const struct l_dbus_ops classic_ops = {
 	.name_acquire = classic_name_acquire,
 };
 
-static struct l_dbus *setup_dbus1(int fd, const char *guid)
+static struct l_dbus *setup_dbus1(int fd, const char *guid, bool skip_hello)
 {
 	static const unsigned char creds = 0x00;
 	char uid[6], hexuid[12], *ptr = hexuid;
@@ -1055,6 +1061,7 @@ static struct l_dbus *setup_dbus1(int fd, const char *guid)
 
 	classic->auth_command = l_strdup_printf("AUTH EXTERNAL %s\r\n", hexuid);
 	classic->auth_state = WAITING_FOR_OK;
+	classic->skip_hello = skip_hello;
 
 	dbus->negotiate_unix_fd = true;
 	dbus->support_unix_fd = false;
@@ -1132,7 +1139,7 @@ static struct l_dbus *setup_unix(char *params)
 		return NULL;
 	}
 
-	return setup_dbus1(fd, guid);
+	return setup_dbus1(fd, guid, false);
 }
 
 static bool setup_tcp_cb(struct l_io *io, void *user_data)
@@ -1300,6 +1307,11 @@ LIB_EXPORT struct l_dbus *l_dbus_new_default(enum l_dbus_bus bus)
 	}
 
 	return setup_address(address);
+}
+
+LIB_EXPORT struct l_dbus *l_dbus_new_private(int fd)
+{
+	return setup_dbus1(fd, NULL, true);
 }
 
 LIB_EXPORT void l_dbus_destroy(struct l_dbus *dbus)

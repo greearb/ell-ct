@@ -208,6 +208,7 @@ global:
 	l_dbus_property_changed;
 	l_dbus_new;
 	l_dbus_new_default;
+	l_dbus_new_private;
 	l_dbus_destroy;
 	l_dbus_set_ready_handler;
 	l_dbus_set_disconnect_handler;
