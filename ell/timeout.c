@@ -23,6 +23,7 @@
 #include "timeout.h"
 #include "main-private.h"
 #include "private.h"
+#include "time-private.h"
 
 /**
  * SECTION:timeout
@@ -297,4 +298,32 @@ LIB_EXPORT void l_timeout_set_callback(struct l_timeout *timeout,
 	timeout->callback = callback;
 	timeout->user_data = user_data;
 	timeout->destroy = destroy;
+}
+
+/**
+ * l_timeout_get_remaining:
+ *
+ * Get the remaining time for a timeout in microseconds
+ *
+ * @timeout: timeout object
+ * @remaining: microseconds remaining on timer
+ *
+ * Returns: True if successfully got remaining time
+ *          False if failure to get remaining time
+ **/
+LIB_EXPORT bool l_timeout_remaining(struct l_timeout *timeout,
+						uint64_t *remaining)
+{
+	struct itimerspec current;
+
+	if (unlikely(!timeout))
+		return false;
+
+	if (timerfd_gettime(timeout->fd, &current) < 0)
+		return false;
+
+	if (remaining)
+		*remaining = _time_from_timespec(&current.it_value);
+
+	return true;
 }

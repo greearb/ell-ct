@@ -529,6 +529,7 @@ global:
 	l_timeout_create_ms;
 	l_timeout_modify;
 	l_timeout_modify_ms;
+	l_timeout_remaining;
 	l_timeout_remove;
 	l_timeout_set_callback;
 	/* tls */

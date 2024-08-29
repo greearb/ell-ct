@@ -34,7 +34,8 @@ void l_timeout_remove(struct l_timeout *timeout);
 void l_timeout_set_callback(struct l_timeout *timeout,
 				l_timeout_notify_cb_t callback, void *user_data,
 				l_timeout_destroy_cb_t destroy);
-
+bool l_timeout_remaining(struct l_timeout *timeout,
+				uint64_t *remaining);
 #ifdef __cplusplus
 }
 #endif
