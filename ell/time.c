@@ -18,7 +18,7 @@
 #include "random.h"
 #include "private.h"
 
-static uint64_t _time_from_timespec(const struct timespec *ts)
+uint64_t _time_from_timespec(const struct timespec *ts)
 {
 	return ts->tv_sec * L_USEC_PER_SEC + ts->tv_nsec / L_NSEC_PER_USEC;
 }

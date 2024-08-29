@@ -12,3 +12,4 @@ uint64_t _time_fuzz_msecs(uint64_t ms);
 uint64_t _time_fuzz_secs(uint32_t secs, uint32_t max_offset);
 uint64_t _time_realtime_to_boottime(const struct timeval *ts);
 uint64_t time_realtime_now(void);
+uint64_t _time_from_timespec(const struct timespec *ts);
