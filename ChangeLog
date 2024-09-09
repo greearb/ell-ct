@@ -1,3 +1,7 @@
+ver 0.69:
+	Add support for getting remaining microseconds left on a timer.
+	Add support for setting link MTU on a network interface.
+
 ver 0.68:
 	Fix issue with string allocation growth strategy.
 	Add support for netlink helper functions.
